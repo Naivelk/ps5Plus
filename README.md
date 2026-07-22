@@ -54,6 +54,23 @@ Todo está en `config.yaml`, comentado en español:
 | `reddit.subs` | Qué subreddits vigila |
 | `senales_estafa` | Añade las frases basura que te vayan llegando |
 
+### Precios oficiales del PlayStation Store
+
+`store_source.py` lee las nueve combinaciones (Essential/Extra/Premium ×
+1/3/12 meses) directo del Store, con precio de lista y precio rebajado. Solo
+avisa cuando hay **rebaja real** o cuando los 12 meses bajan de tu objetivo,
+así que en semanas normales no dice nada.
+
+Otras tiendas **no se pueden consultar**, y está comprobado, no supuesto:
+G2A devuelve 403, Kinguin y Slickdeals están tras Cloudflare, y Eneba
+responde 200 pero arma la página en JavaScript, así que el HTML llega sin
+productos ni precios.
+
+**Limitación de región:** no se puede forzar por URL. Pedir `es-co` devuelve
+los mismos precios en USD que `en-us`, porque PS Store va por geolocalización
+de la IP y GitHub Actions corre en EE.UU. Los precios en pesos llegan por los
+feeds de noticias colombianas.
+
 ### Si Reddit falla, el bot sigue funcionando
 
 Reddit es la mejor fuente para precios exactos, pero es la más frágil: corta

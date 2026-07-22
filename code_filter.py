@@ -175,6 +175,11 @@ def _dominio(url):
     return (m.group(1).lower().replace("www.", "") if m else "")
 
 
+# Los sitios de spam SEO meten un identificador aleatorio en el titular, tipo
+# "FREE PS Plus CODES Tutorial 2026 (vd3UbCkcTD)". Ningún medio real hace eso.
+_RE_TOKEN_SPAM = re.compile(r"\(\s*[A-Za-z0-9]{8,}\s*\)")
+
+
 def evaluar(item, senales_estafa, dominios_confiables, acortadores):
     """Devuelve (nivel, motivos). nivel: 'ok' | 'duda' | 'riesgo'.
 
@@ -187,20 +192,35 @@ def evaluar(item, senales_estafa, dominios_confiables, acortadores):
     if any(a in texto for a in acortadores):
         motivos.append("usa enlace acortado")
 
+    if _RE_TOKEN_SPAM.search(item.get("titulo", "")):
+        motivos.append("código aleatorio en el título (spam SEO)")
+
     dom = _dominio(item.get("url", ""))
     confiable = any(dom == d or dom.endswith("." + d) for d in dominios_confiables)
     item["dominio"] = dom
     item["confiable"] = confiable
 
+    if len(motivos) >= 2:
+        nivel = "riesgo"
+    elif len(motivos) == 1:
+        nivel = "riesgo" if item.get("categoria") == "codigo" else "duda"
+    else:
+        nivel = "ok"
+
     # Un dominio conocido (playstation.com, amazon, cdkeys...) compensa una
     # señal suelta, pero no dos: nadie legítimo pide encuesta Y tarjeta.
     if confiable and len(motivos) <= 1:
-        return ("ok" if not motivos else "duda"), motivos
-    if len(motivos) >= 2:
-        return "riesgo", motivos
-    if len(motivos) == 1:
-        return "riesgo" if item.get("categoria") == "codigo" else "duda", motivos
-    return "ok", motivos
+        nivel = "ok" if not motivos else "duda"
+
+    # Regla dura, aprendida de un fallo real: un titular de spam SEO
+    # ("FREE PS Plus CODES Tutorial 2026 (No Trial)") salió marcado 🟢 porque
+    # no disparaba ninguna señal concreta. Un "código gratis" alojado en un
+    # dominio desconocido NUNCA puede ser verde: como mucho, amarillo.
+    if item.get("categoria") == "codigo" and not confiable and nivel == "ok":
+        nivel = "duda"
+        motivos.append("código gratis en un sitio no conocido")
+
+    return nivel, motivos
 
 
 ETIQUETA = {

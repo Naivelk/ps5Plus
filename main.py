@@ -13,6 +13,7 @@ import yaml
 
 import reddit_source
 import rss_source
+import store_source
 import code_filter
 import telegram_notify
 
@@ -70,8 +71,9 @@ def main():
     # 1) Recolectar de todas las fuentes (cada una reporta sus errores).
     rd_items, rd_err = reddit_source.obtener(config)
     rss_items, rss_err = rss_source.obtener(config)
-    items = rd_items + rss_items
-    errores = rd_err + rss_err
+    st_items, st_err = store_source.obtener(config)
+    items = st_items + rd_items + rss_items
+    errores = rd_err + rss_err + st_err
     print(f"Encontrados {len(items)} elementos en total.")
     if errores:
         print("Errores técnicos:", errores)
@@ -100,6 +102,18 @@ def main():
     for it in items:
         if it["id"] in ya_visto:
             continue
+
+        # El PS Store ya entrega plan, duración y precio exactos: pasarlo por
+        # los filtros de texto solo podría estropearlo.
+        if it.get("directo"):
+            it["chollo"] = code_filter.bajo_umbral(it["precio"], it["moneda"],
+                                                   umbrales, pisos)
+            it["nivel"] = "ok"
+            it["etiqueta"] = code_filter.ETIQUETA["ok"]
+            it["motivos"] = []
+            nuevos.append(it)
+            continue
+
         if not code_filter.es_relevante(it, palabras, suscripcion, senales_codigo):
             continue
         if code_filter.esta_excluido(it, excluir, excluir_tit):

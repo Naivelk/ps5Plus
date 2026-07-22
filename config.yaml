@@ -194,6 +194,21 @@ senales_region:
 # que aparecen en el 95% de las estafas. Ojo con "no survey" y "no password":
 # nadie legítimo aclara eso — que lo aclaren ES la señal de alarma.
 senales_estafa:
+  # Este bloque salió de una estafa REAL que el bot dejó pasar como legítima:
+  # "[NEW] FREE PS Plus PS4, PS5 FREE Playstation Plus CODES Tutorial 2026
+  #  (No Trial) Plaid Cymru Manifesto (vd3UbCkcTD)"
+  - tutorial
+  - codes tutorial
+  - no trial
+  - sin prueba
+  - 100% free
+  - 100% gratis
+  - working codes
+  - códigos que funcionan
+  - codigos que funcionan
+  - how to get free
+  - cómo conseguir gratis
+  - como conseguir gratis
   - generator
   - generador
   - code generator
@@ -275,6 +290,20 @@ max_dias_antiguedad: 5     # ignorar publicaciones más viejas que esto
 max_por_resumen: 30        # tope de items por mensaje
 ocultar_sospechosos: false # true = ni siquiera te muestra los 🔴
 
+# --------- PLAYSTATION STORE (precios oficiales) ---------
+# Lee los 9 planes (Essential/Extra/Premium x 1/3/12 meses) directo del Store
+# y avisa cuando hay rebaja real o cuando los 12 meses bajan de tu objetivo.
+# No avisa si no pasa nada, así que no te llena el chat.
+#
+# OJO con las regiones: no se pueden forzar por URL. Pedir "es-co" devuelve
+# los mismos precios en USD que "en-us" porque PS Store va por geolocalización
+# de la IP, y GitHub Actions corre en EE.UU. Los precios en pesos te llegan
+# por los feeds de noticias colombianas.
+store:
+  activo: true
+  regiones:
+    - en-us
+
 # --------- REDDIT (la fuente principal) ---------
 # r/PS4Deals y r/GameDeals publican casi todos los descuentos de PS Plus con
 # el precio en el título. Es RSS público: no hace falta API key.
@@ -287,6 +316,10 @@ reddit:
     - PS4Deals
     - GameDeals
     - ConsoleDeals
+    # El sub principal de PS Plus: es donde aparecerían los regalos de códigos
+    # entre suscriptores. Va el último a propósito, porque si Reddit corta con
+    # 429 prefiero perder este antes que los tres de ofertas.
+    - PlayStationPlus
   # OJO: las comillas son obligatorias. Probado: `q=ps plus` devuelve CERO
   # resultados; con comillas devuelve decenas.
   consulta: '"ps plus" OR "playstation plus"'
