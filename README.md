@@ -54,6 +54,17 @@ Todo está en `config.yaml`, comentado en español:
 | `reddit.subs` | Qué subreddits vigila |
 | `senales_estafa` | Añade las frases basura que te vayan llegando |
 
+### Si Reddit falla, el bot sigue funcionando
+
+Reddit es la mejor fuente para precios exactos, pero es la más frágil: corta
+con 429 y crear una app de API no siempre está disponible. Si falla, quedan
+los seis feeds RSS (Google News y el blog de PlayStation), que **no tienen
+rate limit** y son los que en las pruebas trajeron los mejores titulares.
+El bot te avisa en el mensaje cuando Reddit se cae, así sabes qué está pasando.
+
+Ojo con otras tiendas: CDKeys, Eneba y Slickdeals están tras Cloudflare y
+devuelven 403 a cualquier script. Por eso no se scrapean directamente.
+
 ### Ojo al añadir subreddits
 
 Cada sub es una petición HTTP, y Reddit corta con **429 (rate limit)** con

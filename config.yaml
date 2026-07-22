@@ -304,5 +304,13 @@ feeds_rss:
   # Noticias en inglés sobre descuentos de PS Plus.
   - "https://news.google.com/rss/search?q=%22PS+Plus%22+(deal+OR+discount+OR+sale)&hl=en-US&gl=US&ceid=US:en"
   - "https://news.google.com/rss/search?q=%22PlayStation+Plus%22+subscription+deal&hl=en-US&gl=US&ceid=US:en"
+  # Ofertas de 12 meses / 1 año, que es lo que de verdad interesa comprar.
+  - "https://news.google.com/rss/search?q=%22PS+Plus%22+(%2212+months%22+OR+%2212-month%22+OR+%221+year%22)&hl=en-US&gl=US&ceid=US:en"
+  # Códigos y regalos. Trae bastante ruido del catálogo mensual, pero el
+  # filtro ya lo descarta y de vez en cuando cae un regalo de verdad.
+  - "https://news.google.com/rss/search?q=%22PS+Plus%22+(free+OR+giveaway)+code&hl=en-US&gl=US&ceid=US:en"
   # Noticias en español.
   - "https://news.google.com/rss/search?q=%22PlayStation+Plus%22+(oferta+OR+descuento+OR+rebaja)&hl=es-419&gl=CO&ceid=CO:es"
+  # Precios en pesos colombianos. Es el único sitio de donde salen cifras en
+  # COP, así que sin este feed el umbral en pesos casi nunca se dispara.
+  - "https://news.google.com/rss/search?q=%22PlayStation+Plus%22+precio+Colombia&hl=es-419&gl=CO&ceid=CO:es"
