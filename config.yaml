@@ -1,0 +1,308 @@
+# =========================================================
+#  CAZADOR DE OFERTAS Y CÓDIGOS DE PS PLUS
+#  Edita esta parte cuando quieras. No toques el código.
+# =========================================================
+
+# --------- TU CUENTA ---------
+# IMPORTANTE: los códigos de PS Plus están BLOQUEADOS POR REGIÓN. Un código
+# comprado en Colombia no se canjea en una cuenta de EE.UU. ni al revés.
+# Pon aquí la región de tu cuenta PSN: "US" o "CO".
+# El bot te sigue mostrando las dos, pero marca con ⚠️ las que no te sirven.
+mi_region: US
+
+# Precio al que quieres que te avise como 🔥 CHOLLO (12 meses de Essential).
+# Referencia: el precio de lista de 12 meses en EE.UU. es US$79.99, y en
+# rebajas fuertes (Days of Play en junio, Black Friday) suele caer a la mitad.
+# Ajusta estos números cuando lleves un par de semanas viendo precios reales.
+precio_objetivo:
+  USD: 45
+  COP: 150000
+
+# Suelo de plausibilidad: por debajo de esto NO es una suscripción de 12 meses.
+# Sin esto, un titular como "Sony sube el precio de PS Plus a $10.99" (precio
+# MENSUAL) se marcaba como 🔥 chollo por ser menor que 45.
+precio_piso:
+  USD: 25
+  COP: 80000
+
+# --------- QUÉ CUENTA COMO PS PLUS ---------
+# Debe aparecer en el TÍTULO. Si solo está en el cuerpo, casi siempre es ruido.
+palabras_psplus:
+  - ps plus
+  - ps+
+  - psplus
+  - playstation plus
+  - ps plus essential
+  - ps plus extra
+  - ps plus premium
+  - playstation plus essential
+  - playstation plus extra
+  - playstation plus premium
+
+# El título tiene que traer ADEMÁS algo de esta lista. Sin esto se colaban
+# posts como "Black Ops 1 & 2 on sale with PS Plus": nombran PS Plus pero
+# están vendiendo un juego, no la suscripción.
+palabras_suscripcion:
+  - month
+  - months
+  - mes
+  - meses
+  - year
+  - years
+  - año
+  - años
+  - anual
+  - annual
+  - membership
+  - membresía
+  - membresia
+  - subscription
+  - suscripción
+  - suscripcion
+  - essential
+  - extra
+  - premium
+  # Sin estas se perdían titulares reales como "PlayStation Plus Offers Rare
+  # 50% Discount": hablan de la suscripción sin decir "12 meses".
+  - discount
+  - descuento
+  - rebaja
+  - save
+  - ahorra
+  - renewal
+  - renovación
+  - renovacion
+  - upgrade
+
+# --------- RUIDO A DESCARTAR ---------
+# Se miran solo en el TÍTULO: son noticias, no ofertas.
+palabras_excluir_titulo:
+  - now available
+  - ya disponible
+  - ya disponibles
+  - lineup
+  - revealed
+  - monthly games
+  # Noticias del catálogo mensual: son la mayor fuente de ruido que vi al
+  # probar contra titulares reales. No son ofertas de la suscripción.
+  - free games
+  - juegos gratis
+  - games for
+  - juegos para
+  - game trials
+  - day one games
+  - removals
+  - game removals
+  - games to leave
+  - to leave
+  - leak
+  - filtración
+  - filtracion
+  # Ofertas de un JUEGO dirigidas a suscriptores, no de la suscripción.
+  - members get
+  - members save
+  - miembros reciben
+  - juegos del mes
+  - juegos gratis del mes
+  - free games for
+  - game catalog
+  - catálogo de juegos
+  - catalogo de juegos
+  - leaving ps plus
+  - leaving playstation plus
+  - abandonan
+  - se van de
+  - review
+  - reseña
+  - opinión
+  - opinion
+  - vale la pena
+  - is it worth
+  - expired
+  - expirado
+  - vencido
+  - ya no disponible
+  - no longer available
+  - deal is dead
+  - sold out
+  - agotado
+
+# Se miran en título + descripción.
+palabras_excluir:
+  # "PS Plus" usado como complemento = están vendiendo un JUEGO, no la
+  # suscripción. Ej: "Black Ops 1 & 2 on sale with PS Plus for PS5".
+  - with ps plus
+  - con ps plus
+  - via ps plus
+  - on ps plus
+  - for ps plus members
+  - para miembros de ps plus
+  - included with ps plus
+  - incluido con ps plus
+  - incluido en ps plus
+  - price increase
+  - subida de precio
+  - aumento de precio
+  - cancelar suscripción
+  - how to cancel
+  - cómo cancelar
+  - como cancelar
+
+# --------- CÓDIGOS GRATIS vs OFERTAS ---------
+# Si alguna de estas aparece, el item va a la sección urgente 🎁.
+senales_codigo_gratis:
+  - giveaway
+  - sorteo
+  - regalo
+  - free code
+  - free codes
+  - código gratis
+  - codigo gratis
+  - códigos gratis
+  - codigos gratis
+  - giving away
+  - free ps plus
+  - free trial
+  - prueba gratis
+  - prueba gratuita
+  - gratis por
+  - claim your
+  # OJO: aquí NO va "drop" a secas. Lo tuve y clasificaba "price drop"
+  # (bajada de precio) como si fuera un regalo.
+  - code drop
+  - free drop
+
+# --------- REGIÓN ---------
+senales_region:
+  US:
+    - united states
+    - us only
+    - usa
+    - estados unidos
+    - psn us
+    - us account
+    - cuenta americana
+  CO:
+    - colombia
+    - colombiano
+    - colombiana
+    - psn colombia
+    - tienda colombiana
+
+# --------- FILTRO ANTI-ESTAFA ---------
+# El terreno de "PS Plus gratis" está lleno de fraude. Estas frases son las
+# que aparecen en el 95% de las estafas. Ojo con "no survey" y "no password":
+# nadie legítimo aclara eso — que lo aclaren ES la señal de alarma.
+senales_estafa:
+  - generator
+  - generador
+  - code generator
+  - generador de códigos
+  - generador de codigos
+  - human verification
+  - verificación humana
+  - verificacion humana
+  - complete a survey
+  - complete offers
+  - encuesta
+  - survey
+  - no survey
+  - no password
+  - sin encuesta
+  - 100% working
+  - unlimited codes
+  - códigos ilimitados
+  - codigos ilimitados
+  - working 2026
+  - apk
+  - descargar ahora
+  - download now
+  - haz clic aquí para reclamar
+  - click here to claim
+  - enter your password
+  - ingresa tu contraseña
+  - inicia sesión con tu psn
+  - login with psn
+  - verify your account
+  - verifica tu cuenta
+  - número de tarjeta
+  - numero de tarjeta
+  - datos bancarios
+  - cvv
+  - paga el envío
+  - paga el envio
+  - bitcoin
+  - cripto
+  - felicidades has sido seleccionado
+
+# Dominios donde una oferta es creíble. Suavizan una señal suelta (no dos).
+dominios_confiables:
+  - playstation.com
+  - blog.playstation.com
+  - store.playstation.com
+  - reddit.com
+  - amazon.com
+  - amazon.com.co
+  - cdkeys.com
+  - eneba.com
+  - gamestop.com
+  - bestbuy.com
+  - walmart.com
+  - target.com
+  - costco.com
+  - newegg.com
+  - humblebundle.com
+  - fanatical.com
+  - mercadolibre.com.co
+  - falabella.com.co
+  - exito.com
+  - alkosto.com
+  - ktronix.com
+
+acortadores:
+  - bit.ly
+  - tinyurl
+  - cutt.ly
+  - is.gd
+  - adf.ly
+  - linkvertise
+  - shorte.st
+  - ouo.io
+  - adfoc.us
+
+# --------- CUÁNTO Y CADA CUÁNTO ---------
+max_dias_antiguedad: 5     # ignorar publicaciones más viejas que esto
+max_por_resumen: 30        # tope de items por mensaje
+ocultar_sospechosos: false # true = ni siquiera te muestra los 🔴
+
+# --------- REDDIT (la fuente principal) ---------
+# r/PS4Deals y r/GameDeals publican casi todos los descuentos de PS Plus con
+# el precio en el título. Es RSS público: no hace falta API key.
+reddit:
+  # POCOS subs a propósito: cada sub es una petición, y Reddit corta con 429
+  # si le caen varias seguidas. Estos tres son los que publican ofertas de
+  # verdad. Añadir subs de charla (r/PS5, r/playstation) solo trae ruido y
+  # gasta tu presupuesto de peticiones — probado.
+  subs:
+    - PS4Deals
+    - GameDeals
+    - ConsoleDeals
+  # OJO: las comillas son obligatorias. Probado: `q=ps plus` devuelve CERO
+  # resultados; con comillas devuelve decenas.
+  consulta: '"ps plus" OR "playstation plus"'
+  ventana: week            # hour | day | week | month
+  limite: 50               # posts por sub (solo camino API)
+  # Los tres de abajo solo aplican al camino RSS (sin credenciales de API).
+  pausa_segundos: 15       # respiro entre subs: sin esto Reddit responde 429
+  intentos: 3              # reintentos si aun así corta
+  espera_429: 30           # segundos base de espera entre reintentos
+
+# --------- FEEDS RSS (anuncios oficiales y noticias) ---------
+feeds_rss:
+  # Blog oficial de PlayStation: aquí caen Days of Play y las rebajas grandes.
+  - "https://blog.playstation.com/feed/"
+  # Noticias en inglés sobre descuentos de PS Plus.
+  - "https://news.google.com/rss/search?q=%22PS+Plus%22+(deal+OR+discount+OR+sale)&hl=en-US&gl=US&ceid=US:en"
+  - "https://news.google.com/rss/search?q=%22PlayStation+Plus%22+subscription+deal&hl=en-US&gl=US&ceid=US:en"
+  # Noticias en español.
+  - "https://news.google.com/rss/search?q=%22PlayStation+Plus%22+(oferta+OR+descuento+OR+rebaja)&hl=es-419&gl=CO&ceid=CO:es"

@@ -1,0 +1,64 @@
+name: Cazar ofertas de PS Plus
+
+on:
+  schedule:
+    # Cada 30 minutos. Aviso honesto: el cron de GitHub Actions en repos
+    # gratis NO es puntual — suele arrancar con 5-20 min de retraso y en horas
+    # pico puede saltarse alguna ejecución. Para ofertas (que duran días) da
+    # igual. Para un código gratis que vuela en 2 minutos, a veces llegarás
+    # tarde: eso no lo arregla ningún bot en Actions.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:   # Botón para correrlo manualmente cuando quieras.
+
+permissions:
+  contents: write      # Para guardar la lista de "ya vistos".
+
+# Que dos ejecuciones no se pisen al escribir state/seen.json.
+concurrency:
+  group: psplus-alert
+  cancel-in-progress: false
+
+jobs:
+  cazar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Buscar ofertas y códigos
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Opcionales pero muy recomendados: sin ellos se usa el RSS público
+          # de Reddit, que desde las IPs de GitHub Actions come 429 seguido.
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        run: python main.py
+
+      - name: Guardar lo ya visto
+        run: |
+          git config user.name "psplus-bot"
+          git config user.email "bot@users.noreply.github.com"
+          # El `|| true` importa: si main.py falla antes de crear el archivo,
+          # `git add` daría error y marcaría el job como fallido por partida doble.
+          git add state/seen.json 2>/dev/null || true
+          git commit -m "Actualizar ofertas vistas" || exit 0
+          git pull --rebase --autostash
+          git push
+
+      # Si algo falla (crash, dependencias, etc.), avisar por Telegram.
+      - name: Avisar si el bot falló
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="🚨 El bot de PS Plus falló. Revisa la pestaña Actions en GitHub." \
+            > /dev/null
