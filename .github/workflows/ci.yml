@@ -1,0 +1,31 @@
+name: Pruebas
+
+# Red de seguridad: corre en cada cambio, sobre todo los de config.yaml.
+# Es YAML editado a mano, y un fallo de indentación rompía el bot sin que
+# nadie se enterara hasta que dejaban de llegar avisos.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@v5
+
+      - name: Instalar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Comprobar que todo compila
+        run: python -m compileall -q .
+
+      - name: Smoke test (sin red)
+        run: python smoke_test.py

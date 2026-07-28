@@ -16,9 +16,10 @@ import rss_source
 import store_source
 import code_filter
 import telegram_notify
+import latido
 
 ARCHIVO_VISTOS = "state/seen.json"
-MAX_VISTOS = 3000          # el bot corre muchas veces al día; no dejamos crecer sin fin
+MAX_VISTOS = 5000          # el bot corre muchas veces al día; no dejamos crecer sin fin
 
 
 def cargar_env_local():
@@ -39,19 +40,45 @@ def cargar_config():
         return yaml.safe_load(f)
 
 
-def cargar_vistos():
+def cargar_vistos(ruta=ARCHIVO_VISTOS):
+    """Devuelve {id: 'YYYY-MM-DD'}.
+
+    Acepta también el formato viejo (lista de ids) para no perder lo ya
+    avisado al actualizar: se le pone la fecha de hoy.
+    """
     try:
-        with open(ARCHIVO_VISTOS, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
+        with open(ruta, "r", encoding="utf-8") as f:
+            datos = json.load(f)
+    except (IOError, OSError, ValueError):
+        return {}
+    if isinstance(datos, list):
+        hoy = datetime.date.today().isoformat()
+        return dict((i, hoy) for i in datos)
+    return datos if isinstance(datos, dict) else {}
 
 
-def guardar_vistos(vistos):
-    """Guarda como lista para conservar el orden y poder podar los más viejos."""
-    os.makedirs("state", exist_ok=True)
-    with open(ARCHIVO_VISTOS, "w", encoding="utf-8") as f:
-        json.dump(vistos[-MAX_VISTOS:], f, ensure_ascii=False, indent=2)
+def podar_vistos(vistos, dias, hoy=None):
+    """Olvida lo avisado hace mucho.
+
+    Sin esto, un id quedaba recordado para siempre. Para las noticias da
+    igual (cada URL es única), pero era lo que hacía que una oferta repetida
+    meses después no volviera a avisar nunca.
+    """
+    hoy = hoy or datetime.date.today()
+    corte = (hoy - datetime.timedelta(days=dias)).isoformat()
+    return dict((k, v) for k, v in vistos.items() if v >= corte)
+
+
+def guardar_vistos(vistos, ruta=ARCHIVO_VISTOS):
+    carpeta = os.path.dirname(ruta)
+    if carpeta:
+        os.makedirs(carpeta, exist_ok=True)
+    # Si aun así se desmadra, nos quedamos con lo más reciente.
+    if len(vistos) > MAX_VISTOS:
+        recientes = sorted(vistos.items(), key=lambda kv: kv[1])[-MAX_VISTOS:]
+        vistos = dict(recientes)
+    with open(ruta, "w", encoding="utf-8") as f:
+        json.dump(vistos, f, ensure_ascii=False, indent=1, sort_keys=True)
 
 
 def _clave_titulo(titulo):
@@ -65,8 +92,8 @@ def _clave_titulo(titulo):
 def main():
     cargar_env_local()
     config = cargar_config()
-    vistos = cargar_vistos()
-    ya_visto = set(vistos)
+    vistos = podar_vistos(cargar_vistos(), config.get("dias_recordar", 45))
+    hoy = datetime.date.today().isoformat()
 
     # 1) Recolectar de todas las fuentes (cada una reporta sus errores).
     rd_items, rd_err = reddit_source.obtener(config)
@@ -100,11 +127,10 @@ def main():
     # 2) Filtrar y enriquecer: precio, región, categoría, riesgo.
     nuevos = []
     for it in items:
-        if it["id"] in ya_visto:
-            continue
-
-        # El PS Store ya entrega plan, duración y precio exactos: pasarlo por
-        # los filtros de texto solo podría estropearlo.
+        # El PS Store ya entrega plan, duración y precio exactos, y quien
+        # decide si avisar es el historial de precios. No pasa ni por los
+        # filtros de texto ni por "vistos": meterlo en vistos era justo lo
+        # que impedía volver a avisar de una oferta repetida.
         if it.get("directo"):
             it["chollo"] = code_filter.bajo_umbral(it["precio"], it["moneda"],
                                                    umbrales, pisos)
@@ -114,6 +140,8 @@ def main():
             nuevos.append(it)
             continue
 
+        if it["id"] in vistos:
+            continue
         if not code_filter.es_relevante(it, palabras, suscripcion, senales_codigo):
             continue
         if code_filter.esta_excluido(it, excluir, excluir_tit):
@@ -170,8 +198,13 @@ def main():
     # 5) Avisar y recordar lo enviado.
     telegram_notify.enviar_resumen(a_enviar, mi_region=mi_region, nota=nota)
     for it in a_enviar:
-        vistos.append(it["id"])
+        if not it.get("directo"):
+            vistos[it["id"]] = hoy
     guardar_vistos(vistos)
+
+    # 6) Latido semanal: sin esto, tres semanas sin ofertas y sin mensajes
+    #    son indistinguibles de un bot roto.
+    latido.quizas_enviar(config)
     print("Listo.")
 
 

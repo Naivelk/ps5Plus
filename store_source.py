@@ -12,6 +12,10 @@ La página del producto incluye las NUEVE combinaciones (Essential/Extra/
 Premium x 1/3/12 meses) con `basePriceValue` y `discountedValue` en centavos
 como enteros, así que no hay que parsear "US$15.99" ni adivinar decimales.
 
+Cuándo avisa: cuando el precio BAJA respecto a la última vez que lo miramos
+(ver historial.py). No cuando está por debajo de un número fijo, porque eso
+o te repetía el mismo aviso cada media hora o se callaba para siempre.
+
 LIMITACIÓN CONOCIDA: la región no se puede forzar por URL. Pedir `es-co`
 devuelve exactamente los mismos bytes y precios en USD que `en-us`: PS Store
 decide la región por geolocalización de la IP. Como GitHub Actions corre en
@@ -20,6 +24,8 @@ los feeds de noticias colombianas, no por aquí.
 """
 import re
 import requests
+
+import historial
 
 # Producto de las suscripciones de PS Plus. Una sola página trae los 9 planes.
 PRODUCTO = "IP9101-PPSA06916_00-PLUS1T01M0000000"
@@ -47,7 +53,7 @@ def _campo(bloque, nombre):
     return m.group(1) if m.group(1) is not None else m.group(2)
 
 
-def _planes(html):
+def planes(html):
     """Devuelve las combinaciones plan/duración con su precio."""
     filas, vistos = [], set()
     for m in RE_BLOQUE.finditer(html):
@@ -72,52 +78,97 @@ def _planes(html):
     return filas
 
 
-def obtener(config):
-    """Devuelve (items, errores). Solo reporta rebajas o precios interesantes."""
+def _descargar(region):
+    r = requests.get(URL % (region, PRODUCTO),
+                     headers={"User-Agent": NAVEGADOR}, timeout=30)
+    r.raise_for_status()
+    return r.text
+
+
+def evaluar_fila(f, previo, umbrales):
+    """Decide si esta fila merece aviso y por qué. Devuelve (avisar, motivo).
+
+    Separado de la descarga para poder probarlo sin red.
+    """
+    rebaja_activa = f["precio"] < f["base"]
+    limite = umbrales.get(f["moneda"])
+    bajo_umbral = (limite is not None and f["meses"] == 12
+                   and f["precio"] <= limite)
+
+    if previo is None:
+        # Primera vez que vemos este plan: no hay con qué comparar, así que
+        # solo avisamos si el propio Store dice que está rebajado o si es un
+        # chollo según tu objetivo. Si no, lo anotamos en silencio.
+        if rebaja_activa:
+            return True, "rebaja"
+        if bajo_umbral:
+            return True, "umbral"
+        return False, ""
+
+    if f["precio"] < previo.get("p", f["precio"]):
+        return True, "bajada"
+    return False, ""
+
+
+def obtener(config, hist=None):
+    """Devuelve (items, errores). Solo avisa de bajadas reales de precio."""
     cfg = config.get("store", {}) or {}
     if not cfg.get("activo", True):
         return [], []
     regiones = cfg.get("regiones", ["en-us"])
     umbrales = config.get("precio_objetivo", {})
+    ventana = cfg.get("meses_comparar", 6)
 
+    datos = historial.cargar() if hist is None else hist
     resultados, errores = [], []
+
     for region in regiones:
         try:
-            r = requests.get(URL % (region, PRODUCTO),
-                             headers={"User-Agent": NAVEGADOR}, timeout=30)
-            r.raise_for_status()
+            html = _descargar(region)
         except Exception as ex:
             errores.append("PS Store (%s): %s" % (region, ex))
             continue
 
-        filas = _planes(r.text)
+        filas = planes(html)
         if not filas:
             errores.append("PS Store (%s): no se encontraron precios "
                            "(¿cambió la página?)" % region)
             continue
 
         for f in filas:
-            rebajado = f["precio"] < f["base"]
-            limite = umbrales.get(f["moneda"])
-            interesa = rebajado or (limite is not None and f["meses"] == 12
-                                    and f["precio"] <= limite)
-            # Sin esto avisaría de los 9 planes cada media hora para siempre.
-            if not interesa:
+            k = historial.clave(region, f["plan"], f["meses"])
+            previo = historial.ultimo(datos, k)
+            avisar, motivo = evaluar_fila(f, previo, umbrales)
+
+            # Se registra SIEMPRE, se avise o no: el historial tiene que
+            # reflejar la realidad, no solo lo que te contamos.
+            minimo_antes = historial.minimo(datos, k, dias=ventana * 30)
+            historial.registrar(datos, k, f["precio"], f["base"])
+
+            if not avisar:
                 continue
 
-            if rebajado:
+            detalle = []
+            if f["precio"] < f["base"]:
                 ahorro = 100 - (f["precio"] * 100.0 / f["base"])
-                extra = " (antes %.2f, -%.0f%%)" % (f["base"], ahorro)
-            else:
-                extra = ""
-            titulo = "PS Plus %s %d meses — %.2f %s%s" % (
-                f["plan"], f["meses"], f["precio"], f["moneda"], extra)
+                detalle.append("antes %.2f, -%.0f%%" % (f["base"], ahorro))
+            if previo and previo.get("p") is not None:
+                detalle.append("estaba a %.2f" % previo["p"])
+            if minimo_antes is not None and f["precio"] < minimo_antes:
+                meses = historial.meses_de_historia(datos, k)
+                if meses >= 2:
+                    detalle.append("¡el más bajo en %d meses!" % min(meses, ventana))
+
+            titulo = "PS Plus %s %d meses — %.2f %s" % (
+                f["plan"], f["meses"], f["precio"], f["moneda"])
+            if detalle:
+                titulo += " (" + "; ".join(detalle) + ")"
 
             resultados.append({
-                # El precio va en el id: si cambia, es un aviso nuevo; si no,
-                # ya está en "vistos" y no te repite lo mismo cada media hora.
-                "id": "store:%s:%s:%d:%.2f" % (region, f["plan"], f["meses"],
-                                               f["precio"]),
+                # Sin precio en el id: la decisión de avisar ya la tomó el
+                # historial, y meterlo aquí es lo que causaba que una oferta
+                # repetida no volviera a avisar nunca.
+                "id": "store:%s:%s" % (k, motivo),
                 "titulo": titulo,
                 "descripcion": f["texto"],
                 "url": URL % (region, PRODUCTO),
@@ -133,4 +184,6 @@ def obtener(config):
                 "categoria": "oferta",
             })
 
+    if hist is None:
+        historial.guardar(datos)
     return resultados, errores

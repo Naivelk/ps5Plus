@@ -42,6 +42,44 @@ python main.py
 4. Para que corra solo: sube el repo a GitHub y añade `TELEGRAM_BOT_TOKEN` y
    `TELEGRAM_CHAT_ID` en *Settings → Secrets and variables → Actions*.
 
+## Cuándo te avisa de un precio
+
+No compara contra un número fijo, sino contra **lo que costaba la última vez**
+(`historial.py`). Así:
+
+- Si el precio no cambia, no te escribe, aunque corra cada media hora.
+- Si baja, te avisa — aunque sea el mismo precio del año pasado.
+- Si es el más bajo del histórico, te lo dice.
+
+Esto arregla un bug real: antes el aviso se recordaba por su precio, así que
+el Black Friday de este año te llegaba y el del año siguiente al mismo precio
+**no**, porque el bot creía haberlo avisado ya.
+
+Los precios quedan en `state/precios.json`, que crece solo cuando el precio
+cambia de verdad.
+
+## El resumen semanal
+
+Los domingos te manda los precios actuales y los mínimos vistos. No es
+decorativo: el bot calla cuando no hay ofertas, y sin ese mensaje no habría
+forma de distinguir "no hay nada esta semana" de "lleva tres semanas roto".
+Si el domingo no llega nada, algo pasa. Se ajusta en `latido` del config.
+
+## Pruebas
+
+```bash
+python smoke_test.py
+```
+
+No usa red, tarda segundos, y corre solo en cada push (`.github/workflows/ci.yml`).
+Cubre lo que de verdad se ha roto aquí alguna vez: que `config.yaml` sea YAML
+válido con las claves que el código espera, que la estafa que se coló siga
+saliendo roja, que una oferta repetida vuelva a avisar, y que afinar el ruido
+no se lleve por delante las ofertas buenas.
+
+Si tocas `config.yaml` y el CI se pone rojo, ahí tienes el motivo antes de
+que el bot deje de avisarte en silencio.
+
 ## Ajustes que vas a querer tocar
 
 Todo está en `config.yaml`, comentado en español:
@@ -53,6 +91,8 @@ Todo está en `config.yaml`, comentado en español:
 | `ocultar_sospechosos` | `true` si no quieres ver ni los 🔴 |
 | `reddit.subs` | Qué subreddits vigila |
 | `senales_estafa` | Añade las frases basura que te vayan llegando |
+| `latido.dia` | Qué día llega el resumen (0=lunes … 6=domingo) |
+| `dias_recordar` | Cuántos días recuerda una noticia ya avisada |
 
 ### Precios oficiales del PlayStation Store
 

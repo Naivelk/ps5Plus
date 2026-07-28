@@ -82,6 +82,16 @@ def _enviar_en_trozos(base, chat_id, partes):
         _enviar_texto(base, chat_id, trozo)
 
 
+def enviar_texto_suelto(texto):
+    """Manda un mensaje ya compuesto (lo usa el resumen semanal)."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        print("[Telegram] Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID.")
+        return
+    _enviar_texto("https://api.telegram.org/bot%s" % token, chat_id, texto)
+
+
 def enviar_resumen(items, mi_region=None, nota=None, avisar_vacio=False):
     """Manda el resumen agrupado por secciones. `nota` = aviso técnico.
 

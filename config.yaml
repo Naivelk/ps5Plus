@@ -38,6 +38,15 @@ palabras_psplus:
   - playstation plus essential
   - playstation plus extra
   - playstation plus premium
+  # La prensa en español a veces dice "membresía de PlayStation" sin poner
+  # "Plus". Sin esto se perdían titulares con precios en pesos, que son la
+  # única fuente de cifras en COP.
+  - membresía de playstation
+  - membresia de playstation
+  - suscripción de playstation
+  - suscripcion de playstation
+  - suscripción a ps plus
+  - suscripcion a ps plus
 
 # El título tiene que traer ADEMÁS algo de esta lista. Sin esto se colaban
 # posts como "Black Ops 1 & 2 on sale with PS Plus": nombran PS Plus pero
@@ -102,6 +111,34 @@ palabras_excluir_titulo:
   - members get
   - members save
   - miembros reciben
+  # Catálogo mensual EN ESPAÑOL. Faltaban y era la mayor fuente de ruido que
+  # llegaba al chat: "PS Plus tendrá uno de sus peores meses y perderá 9
+  # juegos" no es una oferta, es una noticia del catálogo.
+  - perderá
+  - perdera
+  - pierde
+  - se van de
+  - se va de
+  - abandonan
+  - abandonarán
+  - abandonaran
+  - llegan a
+  - llegan
+  - llegarán
+  - llegaran
+  - llegará
+  - llegara
+  - nuevos juegos
+  - juegos que
+  - juegos gratis
+  - filtran
+  - filtrado
+  - anunciado oficialmente
+  - anuncia por sorpresa
+  - peores meses
+  - mejores meses
+  - cómo descargarlos
+  - como descargarlos
   - juegos del mes
   - juegos gratis del mes
   - free games for
@@ -303,6 +340,27 @@ store:
   activo: true
   regiones:
     - en-us
+  # Ventana para el "¡el más bajo en X meses!" de los avisos.
+  meses_comparar: 6
+
+# --------- LATIDO SEMANAL ---------
+# El bot calla cuando no hay ofertas. Sin esto, tres semanas de silencio son
+# iguales tanto si no hay nada como si el bot lleva tres semanas roto.
+# Una vez por semana te manda los precios actuales: si ese mensaje no llega,
+# es que algo pasa.
+latido:
+  activo: true
+  dia: 6              # 0=lunes, 1=martes ... 6=domingo
+  planes:
+    - Essential
+    - Extra
+    - Premium
+  duraciones:         # añade 1 o 3 si también te interesan
+    - 12
+
+# Cuántos días recuerda una noticia ya avisada. Antes era "para siempre", y
+# eso hacía que una oferta repetida meses después no volviera a avisar nunca.
+dias_recordar: 45
 
 # --------- REDDIT (la fuente principal) ---------
 # r/PS4Deals y r/GameDeals publican casi todos los descuentos de PS Plus con
