@@ -49,11 +49,49 @@ def es_relevante(item, palabras_psplus, palabras_suscripcion=(), senales_codigo=
             or _contiene(titulo, senales_codigo))
 
 
+def es_tarjeta_psn(item, palabras_tarjeta):
+    """True si el título habla de saldo/tarjeta PSN.
+
+    Merece categoría propia porque suele ser mejor negocio que esperar una
+    rebaja de PS Plus: una tarjeta de 100 USD al 30% de descuento abarata
+    CUALQUIER compra de la store, suscripción incluida, y hay ofertas así
+    todo el año.
+    """
+    return _contiene(item.get("titulo", ""), palabras_tarjeta)
+
+
 def esta_excluido(item, excluir, excluir_titulo=()):
     """True si hay que descartarlo (noticias, juegos del mes, posts viejos)."""
     if _contiene(item.get("titulo", ""), excluir_titulo):
         return True
     return _contiene(_todo(item), excluir)
+
+
+# Alguien contando su problema o preguntando algo. En los subs de PS Plus es
+# la mayoría del contenido, y no es una oferta por mucho que nombre PS Plus.
+_ARRANQUES_PREGUNTA = (
+    "is there", "is it", "are there", "how do", "how can", "how to",
+    "can i", "can you", "should i", "does anyone", "did anyone", "anyone",
+    "why is", "why does", "why did", "what happens", "what is", "help",
+    "question", "psa", "i cancelled", "i canceled", "i bought", "i just",
+    "i have", "i can't", "i cant", "my ps plus", "my playstation",
+    "my subscription", "alguien sabe", "cómo puedo", "como puedo",
+    "me pueden", "tengo un problema", "ayuda",
+)
+
+
+def es_pregunta_o_queja(item):
+    """True si el título es una consulta personal en vez de una oferta.
+
+    Si trae un precio no lo descartamos: "PS Plus 12m $39.99, worth it?" sí
+    interesa aunque acabe en interrogación.
+    """
+    titulo = (item.get("titulo") or "").strip().lower()
+    if not titulo:
+        return False
+    if any(titulo.startswith(p) for p in _ARRANQUES_PREGUNTA):
+        return True
+    return "?" in titulo
 
 
 # ------------------------------------------------------------------ precios

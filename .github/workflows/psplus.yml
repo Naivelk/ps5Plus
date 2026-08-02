@@ -43,14 +43,20 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
         run: python main.py
 
-      - name: Guardar lo ya visto
+      - name: Guardar el estado
         run: |
           git config user.name "psplus-bot"
           git config user.email "bot@users.noreply.github.com"
-          # El `|| true` importa: si main.py falla antes de crear el archivo,
-          # `git add` daría error y marcaría el job como fallido por partida doble.
-          git add state/seen.json 2>/dev/null || true
-          git commit -m "Actualizar ofertas vistas" || exit 0
+          # TODA la carpeta state/, no solo seen.json. Guardar solo seen.json
+          # fue un fallo real: el historial de precios y la marca del resumen
+          # semanal se perdían en cada ejecución, así que el bot nunca
+          # detectaba una bajada de precio y mandaba el resumen cada media
+          # hora creyendo que era la primera vez.
+          # El `|| true` importa: si main.py falla antes de crear los
+          # archivos, `git add` daría error y marcaría el job como fallido
+          # por partida doble.
+          git add state/ 2>/dev/null || true
+          git commit -m "Actualizar estado del bot" || exit 0
           git pull --rebase --autostash
           git push
 

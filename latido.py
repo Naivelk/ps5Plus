@@ -38,16 +38,25 @@ def _escribir(datos, ruta=ARCHIVO):
         f.write(json.dumps(datos, ensure_ascii=False, indent=1))
 
 
-def toca(cfg, ultimo, hoy=None):
+def toca(cfg, ultimo, hoy=None, hora=None):
     """¿Toca mandar resumen?
 
-    El bot corre cada media hora: sin la comprobación de "ya se mandó hoy"
-    recibirías 48 resúmenes el mismo domingo.
+    Dos cerrojos, no uno. El primero (¿ya se mandó hoy?) depende de que el
+    estado sobreviva entre ejecuciones, y eso falló de verdad: el workflow no
+    guardaba latido.json, así que cada pasada creía ser la primera y llegaban
+    48 resúmenes el mismo domingo.
+
+    El segundo cerrojo es la hora: aunque el estado se vuelva a perder, fuera
+    de su hora no manda nada. Un fallo así vuelve a ser molesto, pero ya no
+    puede inundarte el chat.
     """
     if not cfg.get("activo", True):
         return False
     hoy = hoy or datetime.date.today()
     if hoy.weekday() != cfg.get("dia", 6):        # 0=lunes ... 6=domingo
+        return False
+    hora = datetime.datetime.utcnow().hour if hora is None else hora
+    if hora != cfg.get("hora_utc", 14):           # 14 UTC = 9 a.m. en Colombia
         return False
     return ultimo != hoy.isoformat()
 
@@ -79,12 +88,12 @@ def componer(datos, planes_seguidos, ventana_meses=6, hoy=None):
     return "\n".join(lineas)
 
 
-def quizas_enviar(config, datos=None, hoy=None):
+def quizas_enviar(config, datos=None, hoy=None, hora=None):
     """Manda el resumen si toca. Devuelve True si lo mandó."""
     cfg = config.get("latido", {}) or {}
     estado = _leer()
     hoy = hoy or datetime.date.today()
-    if not toca(cfg, estado.get("ultimo"), hoy):
+    if not toca(cfg, estado.get("ultimo"), hoy, hora):
         return False
 
     datos = historial.cargar() if datos is None else datos

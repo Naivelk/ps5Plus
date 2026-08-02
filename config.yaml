@@ -8,7 +8,9 @@
 # comprado en Colombia no se canjea en una cuenta de EE.UU. ni al revés.
 # Pon aquí la región de tu cuenta PSN: "US" o "CO".
 # El bot te sigue mostrando las dos, pero marca con ⚠️ las que no te sirven.
-mi_region: US
+mis_regiones:
+  - US
+  - CO
 
 # Precio al que quieres que te avise como 🔥 CHOLLO (12 meses de Essential).
 # Referencia: el precio de lista de 12 meses en EE.UU. es US$79.99, y en
@@ -82,6 +84,29 @@ palabras_suscripcion:
   - renovación
   - renovacion
   - upgrade
+
+# --------- TARJETAS / SALDO PSN ---------
+# Suele ser MEJOR negocio que esperar una rebaja de PS Plus: una tarjeta de
+# 100 USD al 30% de descuento abarata cualquier compra de la store, la
+# suscripción incluida, y hay ofertas así todo el año.
+# Ejemplo real: 100 USD por 273.250 COP deja el dólar a 2.732 (mercado ~4.000)
+# -> PS Plus Essential 12m baja de ~320.000 a ~218.000 COP.
+palabras_tarjeta_psn:
+  - psn card
+  - psn cards
+  - psn gift card
+  - psn giftcard
+  - psn wallet
+  - psn credit
+  - psn funds
+  - playstation network card
+  - playstation store card
+  - playstation gift card
+  - tarjeta psn
+  - tarjeta playstation
+  - saldo psn
+  - saldo de psn
+  - recarga psn
 
 # --------- RUIDO A DESCARTAR ---------
 # Se miran solo en el TÍTULO: son noticias, no ofertas.
@@ -351,6 +376,9 @@ store:
 latido:
   activo: true
   dia: 6              # 0=lunes, 1=martes ... 6=domingo
+  # Segundo cerrojo contra el spam: aunque se pierda el estado, fuera de esta
+  # hora no manda nada. GitHub Actions va en UTC; 14 UTC = 9 a.m. en Colombia.
+  hora_utc: 14
   planes:
     - Essential
     - Extra
@@ -370,17 +398,16 @@ reddit:
   # si le caen varias seguidas. Estos tres son los que publican ofertas de
   # verdad. Añadir subs de charla (r/PS5, r/playstation) solo trae ruido y
   # gasta tu presupuesto de peticiones — probado.
+  # Solo subs de OFERTAS. r/PlayStationPlus estuvo aquí y fue un error: es un
+  # sub de soporte, y lo que llegaba al chat eran preguntas y quejas
+  # ("i cancelled my ps plus after a failed payment"), no ofertas.
   subs:
     - PS4Deals
     - GameDeals
     - ConsoleDeals
-    # El sub principal de PS Plus: es donde aparecerían los regalos de códigos
-    # entre suscriptores. Va el último a propósito, porque si Reddit corta con
-    # 429 prefiero perder este antes que los tres de ofertas.
-    - PlayStationPlus
   # OJO: las comillas son obligatorias. Probado: `q=ps plus` devuelve CERO
   # resultados; con comillas devuelve decenas.
-  consulta: '"ps plus" OR "playstation plus"'
+  consulta: '"ps plus" OR "playstation plus" OR "psn card" OR "playstation network card"'
   ventana: week            # hour | day | week | month
   limite: 50               # posts por sub (solo camino API)
   # Los tres de abajo solo aplican al camino RSS (sin credenciales de API).
@@ -405,3 +432,5 @@ feeds_rss:
   # Precios en pesos colombianos. Es el único sitio de donde salen cifras en
   # COP, así que sin este feed el umbral en pesos casi nunca se dispara.
   - "https://news.google.com/rss/search?q=%22PlayStation+Plus%22+precio+Colombia&hl=es-419&gl=CO&ceid=CO:es"
+  # Saldo PSN con descuento: a menudo mejor negocio que la propia rebaja.
+  - "https://news.google.com/rss/search?q=(%22PSN+card%22+OR+%22PlayStation+Network+card%22)+(deal+OR+discount+OR+sale)&hl=en-US&gl=US&ceid=US:en"

@@ -15,12 +15,34 @@ requeriría guardar tu contraseña, choca con el captcha de Sony y, si acumulas
 intentos fallidos, te pueden bloquear la cuenta — perderías toda tu biblioteca
 por ahorrarte 15 segundos de copiar y pegar. **Tú canjeas a mano.**
 
+## El truco que más ahorra: saldo PSN con descuento
+
+Esperar a que Sony rebaje PS Plus no suele ser el mejor negocio. Comprar
+**saldo PSN con descuento** sí, y hay ofertas así todo el año.
+
+Ejemplo real: una tarjeta de 100 USD por 273.250 COP deja el dólar a 2.732
+cuando el mercado está sobre 4.000 — un 32% de descuento sobre **cualquier**
+compra de la store. Con eso, PS Plus Essential 12 meses baja de ~320.000 a
+~218.000 COP, y Premium de ~640.000 a ~437.000.
+
+Por eso el bot vigila las tarjetas aparte, en su propia sección 💳. Se
+configuran en `palabras_tarjeta_psn`.
+
+Ojo: **Eneba no se puede consultar automáticamente.** Su web no trae los
+precios en el HTML (los pide por GraphQL al cargar) y tiene la introspección
+del esquema desactivada. Se podría imitar la llamada del navegador, pero
+depende de identificadores que cambian en cada despliegue suyo, así que el
+bot se rompería en semanas. Eneba toca mirarla a mano.
+
 ## Aviso importante sobre regiones
 
 Los códigos de PS Plus están **bloqueados por región**. Un código de 12 meses
 comprado en Colombia no funciona en una cuenta PSN de EE.UU. y viceversa.
-Configura `mi_region` en `config.yaml` y el bot marcará con ⚠️ las ofertas que
-no puedes usar. No las oculta, por si algún día abres una cuenta de esa región.
+
+En `mis_regiones` van todas las cuentas que tengas (`US`, `CO`, o ambas). Con
+más de una, el bot deja de tratarlo como un problema y te dice **en cuál
+canjear** cada oferta. Si una oferta no sirve para ninguna, la marca con ⚠️
+pero no la oculta.
 
 ## Puesta en marcha
 

@@ -106,6 +106,7 @@ def main():
         print("Errores técnicos:", errores)
 
     palabras = config.get("palabras_psplus", [])
+    palabras_tarjeta = config.get("palabras_tarjeta_psn", [])
     suscripcion = config.get("palabras_suscripcion", [])
     excluir = config.get("palabras_excluir", [])
     excluir_tit = config.get("palabras_excluir_titulo", [])
@@ -116,7 +117,12 @@ def main():
     acortadores = config.get("acortadores", [])
     umbrales = config.get("precio_objetivo", {})
     pisos = config.get("precio_piso", {})
-    mi_region = config.get("mi_region")
+    # Acepta el ajuste viejo (una sola región) por si queda algún config sin
+    # migrar; lo normal ahora es la lista, porque se pueden tener dos cuentas.
+    mis_regiones = config.get("mis_regiones")
+    if not mis_regiones:
+        una = config.get("mi_region")
+        mis_regiones = [una] if una else []
     max_dias = config.get("max_dias_antiguedad", 5)
     max_envio = config.get("max_por_resumen", 30)
     ocultar_riesgo = config.get("ocultar_sospechosos", False)
@@ -142,15 +148,24 @@ def main():
 
         if it["id"] in vistos:
             continue
-        if not code_filter.es_relevante(it, palabras, suscripcion, senales_codigo):
+        es_tarjeta = code_filter.es_tarjeta_psn(it, palabras_tarjeta)
+        if not es_tarjeta and not code_filter.es_relevante(
+                it, palabras, suscripcion, senales_codigo):
             continue
         if code_filter.esta_excluido(it, excluir, excluir_tit):
+            continue
+        # Preguntas y quejas de usuarios: llegaban al chat cosas como "is
+        # there anyway to get free ps plus" o "i cancelled my ps plus after a
+        # failed payment". Si trae precio, no se descarta.
+        precio_titulo, _ = code_filter.extraer_precio(it["titulo"])
+        if precio_titulo is None and code_filter.es_pregunta_o_queja(it):
             continue
         fecha = it.get("fecha_dt")
         if fecha and fecha < limite_fecha:
             continue
 
-        it["categoria"] = code_filter.categoria(it, senales_codigo)
+        it["categoria"] = ("tarjeta" if es_tarjeta
+                           else code_filter.categoria(it, senales_codigo))
         precio, moneda = code_filter.extraer_precio(it["titulo"])
         it["precio"], it["moneda"] = precio, moneda
         it["chollo"] = code_filter.bajo_umbral(precio, moneda, umbrales, pisos)
@@ -171,10 +186,11 @@ def main():
     # 3) Ordenar: códigos gratis primero (vuelan), luego chollos, luego el resto.
     #    Dentro de cada grupo, lo de tu región antes que lo que no puedes usar.
     orden_nivel = {"ok": 0, "duda": 1, "riesgo": 2}
+    orden_cat = {"codigo": 0, "tarjeta": 1}      # el resto, después
     nuevos.sort(key=lambda x: (
-        x["categoria"] != "codigo",
+        orden_cat.get(x["categoria"], 2),
         not x["chollo"],
-        bool(mi_region) and x.get("region") not in (None, mi_region),
+        bool(mis_regiones) and x.get("region") not in [None] + list(mis_regiones),
         orden_nivel.get(x["nivel"], 3),
     ))
 
@@ -196,7 +212,7 @@ def main():
         nota = "⚠️ <b>Aviso técnico:</b> el bot tuvo problemas:\n• " + detalle
 
     # 5) Avisar y recordar lo enviado.
-    telegram_notify.enviar_resumen(a_enviar, mi_region=mi_region, nota=nota)
+    telegram_notify.enviar_resumen(a_enviar, mis_regiones=mis_regiones, nota=nota)
     for it in a_enviar:
         if not it.get("directo"):
             vistos[it["id"]] = hoy

@@ -7,6 +7,7 @@ import requests
 # duran minutos, las ofertas duran días.
 SECCIONES = [
     ("codigo", "🎁 <b>Códigos gratis / sorteos</b>"),
+    ("tarjeta", "💳 <b>Saldo PSN con descuento</b>"),
     ("chollo", "🔥 <b>Ofertas bajo tu precio objetivo</b>"),
     ("oferta", "💲 <b>Otras ofertas</b>"),
 ]
@@ -17,8 +18,9 @@ def _escapar(t):
 
 
 def _bucket(it):
-    if it.get("categoria") == "codigo":
-        return "codigo"
+    cat = it.get("categoria")
+    if cat in ("codigo", "tarjeta"):
+        return cat
     if it.get("chollo"):
         return "chollo"
     return "oferta"
@@ -32,7 +34,7 @@ def _precio_txt(it):
     return f"US${it['precio']:,.2f}"
 
 
-def _bloque(it, n, mi_region):
+def _bloque(it, n, mis_regiones):
     """Un item compacto; el título es enlace clicable."""
     emoji = it["etiqueta"].split()[0]              # 🟢 / 🟡 / 🔴
     url = _escapar(it["url"])
@@ -43,10 +45,12 @@ def _bloque(it, n, mi_region):
         linea2.append(f"<b>{_escapar(precio)}</b>")
 
     region = it.get("region")
-    if region and mi_region and region != mi_region:
-        linea2.append(f"⚠️ región {_escapar(region)} — no sirve en tu cuenta")
+    if region and mis_regiones and region not in mis_regiones:
+        linea2.append(f"⚠️ región {_escapar(region)} — no sirve en tus cuentas")
     elif region:
-        linea2.append(f"🌍 {_escapar(region)}")
+        # Con varias cuentas lo útil no es avisar de un problema, sino
+        # recordarte en cuál de las dos hay que canjearlo.
+        linea2.append(f"🌍 canjéalo en tu cuenta {_escapar(region)}")
 
     bloque = (
         f"{n}. {emoji} <a href=\"{url}\"><b>{_escapar(it['titulo'])}</b></a>\n"
@@ -92,7 +96,7 @@ def enviar_texto_suelto(texto):
     _enviar_texto("https://api.telegram.org/bot%s" % token, chat_id, texto)
 
 
-def enviar_resumen(items, mi_region=None, nota=None, avisar_vacio=False):
+def enviar_resumen(items, mis_regiones=None, nota=None, avisar_vacio=False):
     """Manda el resumen agrupado por secciones. `nota` = aviso técnico.
 
     avisar_vacio=False porque este bot corre muchas veces al día: no queremos
@@ -113,7 +117,7 @@ def enviar_resumen(items, mi_region=None, nota=None, avisar_vacio=False):
             _enviar_texto(base, chat_id, "🎮 Sin novedades de PS Plus por ahora.")
         return
 
-    grupos = {"codigo": [], "chollo": [], "oferta": []}
+    grupos = dict((clave, []) for clave, _ in SECCIONES)
     for it in items:
         grupos[_bucket(it)].append(it)
 
@@ -125,7 +129,7 @@ def enviar_resumen(items, mi_region=None, nota=None, avisar_vacio=False):
             continue
         partes.append(f"{titulo_sec}  ({len(grupo)})")
         for it in grupo:
-            partes.append(_bloque(it, n, mi_region))
+            partes.append(_bloque(it, n, mis_regiones))
             n += 1
 
     if grupos["codigo"]:
