@@ -22,7 +22,6 @@ import sys
 import json
 import datetime
 
-import historial
 import telegram_notify
 
 ARCHIVO = "state/eneba.json"

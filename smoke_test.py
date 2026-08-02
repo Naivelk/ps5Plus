@@ -306,6 +306,31 @@ def probar_nombres_existen():
                 % os.path.basename(ruta),
                 "-> falta %s" % ", ".join(sorted(faltan)))
 
+        # Imports que sobran. Se comprueba aquí porque es lo que hizo fallar
+        # el CI la primera vez que se añadió pyflakes, y así el fallo se ve
+        # en local con el mismo criterio en vez de solo en la nube.
+        importados = {}
+        for n in ast.walk(arbol):
+            if isinstance(n, ast.Import):
+                for a in n.names:
+                    importados[a.asname or a.name.split(".")[0]] = n.lineno
+            elif isinstance(n, ast.ImportFrom):
+                for a in n.names:
+                    importados[a.asname or a.name] = n.lineno
+        usados = set()
+        for n in ast.walk(arbol):
+            if isinstance(n, ast.Name):
+                usados.add(n.id)
+            elif isinstance(n, ast.Attribute):
+                v = n
+                while isinstance(v, ast.Attribute):
+                    v = v.value
+                if isinstance(v, ast.Name):
+                    usados.add(v.id)
+        sobran = sorted(k for k in importados if k not in usados)
+        revisar(not sobran, "%s: sin imports que sobren"
+                % os.path.basename(ruta), "-> sobra %s" % ", ".join(sobran))
+
 
 def probar_itad(cfg):
     """ITAD: sin key debe callarse, no romper."""
