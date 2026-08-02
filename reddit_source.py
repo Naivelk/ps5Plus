@@ -170,6 +170,53 @@ def _por_rss(subs, consulta, ventana, pausa, intentos, espera):
 
 # ----------------------------------------------------------------- entrada
 
+def obtener_ofertas(config):
+    """Lee lo NUEVO de los subs de ofertas, sin filtrar por texto.
+
+    Sirve para el modo "no quiero perderme ningún ofertón": aquí no se busca
+    PS Plus, se traen las novedades y luego main.py se queda solo con las que
+    superan tu umbral de descuento. Usa /new/.rss, que es una petición por sub
+    y no pasa por el buscador (que es lo que más 429 provoca).
+    """
+    cfg = config.get("ofertas_juegos", {}) or {}
+    if not cfg.get("activo", False):
+        return [], []
+    subs = cfg.get("subs", [])
+    pausa = cfg.get("pausa_segundos", 15)
+    limite = cfg.get("limite", 50)
+
+    resultados, caidos = [], []
+    for i, sub in enumerate(subs):
+        if i:
+            time.sleep(pausa)
+        url = "https://www.reddit.com/r/%s/new/.rss?limit=%d" % (sub, limite)
+        feed, fallo = _leer(url, cfg.get("intentos", 2), cfg.get("espera_429", 30))
+        if feed is None:
+            caidos.append(sub)
+            print("[Reddit/ofertas] r/%s: %s" % (sub, fallo))
+            continue
+        for e in feed.entries:
+            enlace = e.get("link", "")
+            if not enlace:
+                continue
+            resultados.append({
+                "id": "reddit:" + enlace,
+                "titulo": e.get("title", ""),
+                "descripcion": e.get("summary", ""),
+                "url": enlace,
+                "fuente": "r/" + sub,
+                "autor": e.get("author", ""),
+                "fecha_dt": _a_fecha(e.get("published_parsed")),
+                "imagen": None,
+                "solo_oferton": True,      # main.py le aplica el umbral de %
+            })
+
+    errores = []
+    if subs and len(caidos) == len(subs):
+        errores.append("Reddit ofertas: fallaron todos los subs")
+    return resultados, errores
+
+
 def obtener(config):
     """Devuelve (items, errores) encontrados en Reddit."""
     cfg = config.get("reddit", {}) or {}

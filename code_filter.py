@@ -158,6 +158,30 @@ def extraer_precio(texto):
     return min(candidatos, key=lambda c: (c[1], c[0]))
 
 
+# "75% off", "-80%", "(90% de descuento)", "descuento del 85%"
+_RE_DESCUENTO = re.compile(
+    r"(?:-\s*)?(\d{1,3})\s*%\s*(?:off|de\s+descuento|descuento|dto)?"
+    r"|descuento\s+del\s+(\d{1,3})\s*%", re.IGNORECASE)
+
+
+def extraer_descuento(texto):
+    """Mayor porcentaje de descuento que aparezca en el texto, o None.
+
+    Nos quedamos con el mayor porque los títulos de ofertas suelen mezclar
+    varios ("70% off, hasta 85% en la saga"): el que engancha es el grande.
+    """
+    mejores = []
+    for m in _RE_DESCUENTO.finditer(texto or ""):
+        bruto = m.group(1) or m.group(2)
+        try:
+            valor = int(bruto)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= valor <= 99:          # 100% no es descuento, es regalo o error
+            mejores.append(valor)
+    return max(mejores) if mejores else None
+
+
 def bajo_umbral(precio, moneda, umbrales, pisos=None):
     """True si el precio es un chollo REAL de 12 meses.
 

@@ -390,6 +390,49 @@ latido:
 # eso hacía que una oferta repetida meses después no volviera a avisar nunca.
 dias_recordar: 45
 
+# --------- OFERTONES DE JUEGOS (cualquier juego, no solo PS Plus) ---------
+# Trae lo NUEVO de los subs de ofertas y se queda solo con lo que supere el
+# descuento mínimo. El umbral es la única defensa contra el ruido: r/GameDeals
+# publica decenas de ofertas al día, así que bajar de 70 llena el chat.
+# Si ves poco, baja a 70. Si ves demasiado, sube a 85.
+ofertas_juegos:
+  activo: true
+  descuento_minimo: 80      # solo avisa de -80% o más
+  subs:
+    - GameDeals
+    - PS4Deals
+  limite: 50
+  pausa_segundos: 15
+  intentos: 2
+  espera_429: 30
+
+# --------- ENEBA ---------
+# Corre en su propio workflow (.github/workflows/eneba.yml), cada 6 horas.
+# Necesita un navegador completo: la web de Eneba responde a curl pero el
+# HTML no trae los precios, los pinta con JavaScript.
+#
+# PARA AÑADIR UN PRODUCTO: abre Eneba, busca lo que quieras, copia la URL de
+# la página del producto y pégala aquí. El `objetivo` es opcional: si lo
+# pones, te avisa también cuando el precio esté por debajo de esa cifra.
+# Todas las de abajo están verificadas (devuelven 200).
+eneba:
+  activo: true
+  espera_segundos: 20
+  productos:
+    - nombre: "Tarjeta PSN 100 USD (USA)"
+      url: "https://www.eneba.com/latam/psn-playstation-network-card-100-usd-usa-psn-key-united-states"
+      objetivo: 90        # en la moneda que muestre Eneba (normalmente USD)
+    - nombre: "Tarjeta PSN 50 USD (USA)"
+      url: "https://www.eneba.com/latam/psn-playstation-network-card-50-usd-usa-psn-key-united-states"
+    - nombre: "Tarjeta PSN 25 USD (USA)"
+      url: "https://www.eneba.com/latam/psn-playstation-network-card-25-usd-usa-psn-key-united-states"
+    - nombre: "PS Plus Extra 12 meses (USA)"
+      url: "https://www.eneba.com/latam/psn-playstation-plus-extra-12-months-psn-key-united-states"
+    - nombre: "PS Plus Premium 12 meses (USA)"
+      url: "https://www.eneba.com/latam/psn-playstation-plus-premium-12-months-psn-key-united-states"
+    - nombre: "GTA VI (PS5, global)"
+      url: "https://www.eneba.com/latam/psn-grand-theft-auto-vi-ps5-psn-key-global"
+
 # --------- REDDIT (la fuente principal) ---------
 # r/PS4Deals y r/GameDeals publican casi todos los descuentos de PS Plus con
 # el precio en el título. Es RSS público: no hace falta API key.

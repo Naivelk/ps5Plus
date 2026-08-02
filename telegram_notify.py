@@ -10,6 +10,7 @@ SECCIONES = [
     ("tarjeta", "💳 <b>Saldo PSN con descuento</b>"),
     ("chollo", "🔥 <b>Ofertas bajo tu precio objetivo</b>"),
     ("oferta", "💲 <b>Otras ofertas</b>"),
+    ("oferton", "🎮 <b>Ofertones de juegos</b>"),
 ]
 
 
@@ -19,7 +20,7 @@ def _escapar(t):
 
 def _bucket(it):
     cat = it.get("categoria")
-    if cat in ("codigo", "tarjeta"):
+    if cat in ("codigo", "tarjeta", "oferton"):
         return cat
     if it.get("chollo"):
         return "chollo"
@@ -43,6 +44,8 @@ def _bloque(it, n, mis_regiones):
     precio = _precio_txt(it)
     if precio:
         linea2.append(f"<b>{_escapar(precio)}</b>")
+    if it.get("descuento"):
+        linea2.append(f"<b>-{int(it['descuento'])}%</b>")
 
     region = it.get("region")
     if region and mis_regiones and region not in mis_regiones:

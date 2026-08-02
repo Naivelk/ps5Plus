@@ -97,10 +97,11 @@ def main():
 
     # 1) Recolectar de todas las fuentes (cada una reporta sus errores).
     rd_items, rd_err = reddit_source.obtener(config)
+    of_items, of_err = reddit_source.obtener_ofertas(config)
     rss_items, rss_err = rss_source.obtener(config)
     st_items, st_err = store_source.obtener(config)
-    items = st_items + rd_items + rss_items
-    errores = rd_err + rss_err + st_err
+    items = st_items + rd_items + rss_items + of_items
+    errores = rd_err + rss_err + st_err + of_err
     print(f"Encontrados {len(items)} elementos en total.")
     if errores:
         print("Errores técnicos:", errores)
@@ -126,6 +127,8 @@ def main():
     max_dias = config.get("max_dias_antiguedad", 5)
     max_envio = config.get("max_por_resumen", 30)
     ocultar_riesgo = config.get("ocultar_sospechosos", False)
+    min_descuento = (config.get("ofertas_juegos", {}) or {}).get(
+        "descuento_minimo", 75)
 
     limite_fecha = (datetime.datetime.now(datetime.timezone.utc)
                     .replace(tzinfo=None) - datetime.timedelta(days=max_dias))
@@ -148,6 +151,29 @@ def main():
 
         if it["id"] in vistos:
             continue
+
+        # Novedades de los subs de ofertas: no hablan de PS Plus, así que no
+        # pasan por el filtro de relevancia. Solo entran si el descuento
+        # supera tu umbral; si no, esto sería una manguera de decenas al día.
+        if it.get("solo_oferton"):
+            pct = code_filter.extraer_descuento(it["titulo"])
+            if pct is None or pct < min_descuento:
+                continue
+            it["categoria"] = "oferton"
+            it["descuento"] = pct
+            it["precio"], it["moneda"] = code_filter.extraer_precio(it["titulo"])
+            it["chollo"] = False
+            it["region"] = None
+            nivel, motivos = code_filter.evaluar(it, senales_estafa, confiables,
+                                                 acortadores)
+            it["nivel"] = nivel
+            it["etiqueta"] = code_filter.ETIQUETA[nivel]
+            it["motivos"] = motivos
+            if ocultar_riesgo and nivel == "riesgo":
+                continue
+            nuevos.append(it)
+            continue
+
         es_tarjeta = code_filter.es_tarjeta_psn(it, palabras_tarjeta)
         if not es_tarjeta and not code_filter.es_relevante(
                 it, palabras, suscripcion, senales_codigo):
@@ -186,7 +212,7 @@ def main():
     # 3) Ordenar: códigos gratis primero (vuelan), luego chollos, luego el resto.
     #    Dentro de cada grupo, lo de tu región antes que lo que no puedes usar.
     orden_nivel = {"ok": 0, "duda": 1, "riesgo": 2}
-    orden_cat = {"codigo": 0, "tarjeta": 1}      # el resto, después
+    orden_cat = {"codigo": 0, "tarjeta": 1, "oferton": 3}   # el resto, en medio
     nuevos.sort(key=lambda x: (
         orden_cat.get(x["categoria"], 2),
         not x["chollo"],

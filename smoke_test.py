@@ -26,6 +26,7 @@ import yaml
 import code_filter
 import historial
 import store_source
+import eneba_watch
 import latido
 import main as bot
 
@@ -223,6 +224,63 @@ def probar_tarjetas(cfg):
             "la tarjeta sobrevive al filtro de exclusión")
 
 
+def probar_ofertones(cfg):
+    """Descuentos de juegos: el umbral es lo único que evita el diluvio."""
+    print("\nofertones de juegos")
+    casos = [
+        ("[Steam] Elden Ring ($23.99 / 60% off)", 60),
+        ("[PSN] God of War Ragnarok - $34.99 (50% off)", 50),
+        ("[Eneba] Cyberpunk 2077 -85%", 85),
+        ("Rebajas de verano: hasta 90% de descuento", 90),
+        ("Pack saga completa, descuento del 75%", 75),
+        # Mezcla varios: nos quedamos con el mayor, que es el que engancha.
+        ("[Steam] Saga completa 70% off, hasta 85% en packs", 85),
+        ("PS Plus Essential 12 meses", None),
+    ]
+    for texto, esperado in casos:
+        igual(code_filter.extraer_descuento(texto), esperado,
+              "descuento de %r" % texto[:40])
+
+    # 100% no es un descuento, es un regalo o un error de quien lo escribió.
+    igual(code_filter.extraer_descuento("100% off everything"), None,
+          "ignora el 100%")
+
+    minimo = (cfg.get("ofertas_juegos") or {}).get("descuento_minimo", 75)
+    revisar(50 <= minimo <= 95,
+            "descuento_minimo razonable (50-95)", "-> %r" % minimo)
+
+
+def probar_eneba(cfg):
+    """Lectura del precio de Eneba a partir del texto de la página."""
+    print("\nEneba")
+    casos = [
+        ("Desde:\n93,43 US$\nNo es el precio final", 93.43, "USD"),
+        ("Desde: 273.250 COP", 273250.0, "COP"),
+        ("Desde: 1.234,56 COP", 1234.56, "COP"),
+        ("Sin precio en esta página", None, None),
+    ]
+    for texto, ep, em in casos:
+        igual(eneba_watch.extraer(texto), (ep, em),
+              "precio Eneba de %r" % texto[:34])
+
+    # Mismo criterio que el Store: avisar por bajada, no por número fijo.
+    avisar, _ = eneba_watch.decidir("x", 93.43, "USD", None, None)
+    revisar(not avisar, "primera lectura sin objetivo: no avisa")
+
+    avisar, _ = eneba_watch.decidir("x", 88.0, "USD", None, 90)
+    revisar(avisar, "primera lectura bajo objetivo: avisa")
+
+    avisar, _ = eneba_watch.decidir("x", 93.43, "USD", {"p": 93.43}, 90)
+    revisar(not avisar, "mismo precio que ayer: no avisa")
+
+    avisar, extra = eneba_watch.decidir("x", 85.0, "USD", {"p": 93.43}, None)
+    revisar(avisar and extra, "el precio baja: avisa y dice desde cuánto")
+
+    urls = [p.get("url", "") for p in (cfg.get("eneba") or {}).get("productos", [])]
+    revisar(urls and all(u.startswith("https://www.eneba.com/") for u in urls),
+            "todas las URLs de Eneba son de eneba.com")
+
+
 def probar_precios(cfg):
     print("\nextracción de precios")
     casos = [
@@ -397,6 +455,8 @@ def main():
     probar_filtros(cfg)
     probar_ruido_real(cfg)
     probar_tarjetas(cfg)
+    probar_ofertones(cfg)
+    probar_eneba(cfg)
     probar_precios(cfg)
     probar_estafas(cfg)
     probar_store(cfg)

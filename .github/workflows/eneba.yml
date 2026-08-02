@@ -1,0 +1,56 @@
+name: Vigilar Eneba
+
+# Aparte del bot principal a propósito: necesita un navegador completo, es la
+# fuente más frágil, y si Eneba bloquea o cambia la página no debe arrastrar
+# los avisos de PS Store, Reddit y noticias.
+on:
+  schedule:
+    # Cada 6 horas. Más a menudo no aporta: los precios de Eneba no cambian
+    # cada media hora, y cada ejecución levanta un Chromium entero.
+    - cron: "20 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eneba-watch
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el proyecto
+        uses: actions/checkout@v5
+
+      - name: Instalar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Leer precios de Eneba
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python eneba_watch.py
+
+      - name: Guardar el estado
+        run: |
+          git config user.name "psplus-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add state/ 2>/dev/null || true
+          git commit -m "Actualizar precios de Eneba" || exit 0
+          git pull --rebase --autostash
+          git push
+
+      # Ojo: aquí NO avisamos por Telegram si el job falla. Esta fuente se va
+      # a romper de vez en cuando por diseño, y un aviso cada 6 horas por algo
+      # que ya sabemos que es frágil solo enseña a ignorar las alertas.
+      # eneba_watch.py ya avisa si no logra leer NINGÚN precio.

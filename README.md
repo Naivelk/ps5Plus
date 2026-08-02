@@ -20,19 +20,46 @@ por ahorrarte 15 segundos de copiar y pegar. **Tú canjeas a mano.**
 Esperar a que Sony rebaje PS Plus no suele ser el mejor negocio. Comprar
 **saldo PSN con descuento** sí, y hay ofertas así todo el año.
 
-Ejemplo real: una tarjeta de 100 USD por 273.250 COP deja el dólar a 2.732
-cuando el mercado está sobre 4.000 — un 32% de descuento sobre **cualquier**
-compra de la store. Con eso, PS Plus Essential 12 meses baja de ~320.000 a
-~218.000 COP, y Premium de ~640.000 a ~437.000.
+Ejemplo real (2026-08-02): una tarjeta de 100 USD por 273.250 COP. Al cambio
+real de 3.203 COP/USD eso son 85,31 USD por 100 USD de saldo — un **~15% de
+descuento** sobre **cualquier** compra de la store. En 12 meses eso son unos
+37.600 COP de ahorro en Essential y 75.300 en Premium.
+
+Haz siempre la cuenta con el cambio del día: Eneba muestra los precios en
+pesos usando su propia conversión, que no es la del mercado.
 
 Por eso el bot vigila las tarjetas aparte, en su propia sección 💳. Se
-configuran en `palabras_tarjeta_psn`.
+configuran en `palabras_tarjeta_psn` (para noticias y Reddit) y en
+`eneba.productos` (para precios exactos).
 
-Ojo: **Eneba no se puede consultar automáticamente.** Su web no trae los
-precios en el HTML (los pide por GraphQL al cargar) y tiene la introspección
-del esquema desactivada. Se podría imitar la llamada del navegador, pero
-depende de identificadores que cambian en cada despliegue suyo, así que el
-bot se rompería en semanas. Eneba toca mirarla a mano.
+## Ofertones de cualquier juego
+
+Además de PS Plus, el bot trae lo nuevo de r/GameDeals y r/PS4Deals y se
+queda **solo con lo que supere `ofertas_juegos.descuento_minimo`** (por
+defecto 80%). Ese umbral es la única defensa contra el ruido: esos subs
+publican decenas de ofertas al día. Si ves poco, bájalo a 70; si ves
+demasiado, súbelo a 85.
+
+## Eneba
+
+Sí se vigila, pero necesita un navegador de verdad. Su web responde a `curl`
+y devuelve 200, pero **el HTML no trae los precios**: la página los pinta con
+JavaScript. Se comprobó mirando las peticiones del navegador — el
+"Desde: 93,43 US$" que se ve en pantalla no está por ningún lado en lo que
+baja `curl`.
+
+Por eso `eneba_watch.py` usa Playwright y corre en **su propio workflow**
+(`.github/workflows/eneba.yml`), cada 6 horas. Va aparte a propósito: es la
+pieza más frágil del proyecto y no debe poder tumbar los avisos de PS Store,
+Reddit y noticias. Si Eneba cambia la página o bloquea el bot, te llega un
+aviso y el resto sigue funcionando.
+
+**Para añadir un producto:** busca lo que quieras en Eneba, copia la URL de
+la página del producto y pégala en `eneba.productos` del `config.yaml`. El
+`objetivo` es opcional.
+
+La extracción va por texto (`Desde: <precio>`), no por selectores CSS: las
+clases de Eneba cambian en cada despliegue suyo, ese texto no.
 
 ## Aviso importante sobre regiones
 
