@@ -190,7 +190,8 @@ def obtener_ofertas(config):
         if i:
             time.sleep(pausa)
         url = "https://www.reddit.com/r/%s/new/.rss?limit=%d" % (sub, limite)
-        feed, fallo = _leer(url, cfg.get("intentos", 2), cfg.get("espera_429", 30))
+        feed, fallo = _leer_rss(url, cfg.get("intentos", 2),
+                                cfg.get("espera_429", 30))
         if feed is None:
             caidos.append(sub)
             print("[Reddit/ofertas] r/%s: %s" % (sub, fallo))

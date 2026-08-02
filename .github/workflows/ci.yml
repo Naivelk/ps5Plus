@@ -27,5 +27,14 @@ jobs:
       - name: Comprobar que todo compila
         run: python -m compileall -q .
 
+      # compileall NO pilla los nombres inexistentes: son un NameError en
+      # tiempo de ejecución. Pasó de verdad — al renombrar _leer a _leer_rss
+      # quedó una llamada al nombre viejo, el CI dio verde y el bot murió al
+      # correr. pyflakes sí lo detecta sin ejecutar nada.
+      - name: Buscar nombres inexistentes e imports rotos
+        run: |
+          pip install pyflakes
+          pyflakes *.py
+
       - name: Smoke test (sin red)
         run: python smoke_test.py

@@ -265,6 +265,48 @@ def probar_ofertones(cfg):
             "no marca como seguido un juego cualquiera")
 
 
+def probar_nombres_existen():
+    """Que no se llame a funciones privadas que no existen.
+
+    Un NameError así tumbó el bot en producción con el CI en verde: al
+    renombrar _leer a _leer_rss quedó una llamada al nombre viejo, y eso
+    compileall no lo ve. En CI lo cubre pyflakes; aquí se comprueba sin
+    dependencias para poder ejecutarlo en cualquier sitio.
+    """
+    import ast
+    import glob as _glob
+
+    print("\nnombres de funciones internas")
+    for ruta in sorted(_glob.glob(os.path.join(RAIZ, "*.py"))):
+        with io.open(ruta, encoding="utf-8") as f:
+            arbol = ast.parse(f.read(), ruta)
+
+        definidas = set()
+        for nodo in ast.walk(arbol):
+            if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef)):
+                definidas.add(nodo.name)
+            elif isinstance(nodo, ast.Name) and isinstance(nodo.ctx, ast.Store):
+                definidas.add(nodo.id)
+            elif isinstance(nodo, (ast.Import, ast.ImportFrom)):
+                for alias in nodo.names:
+                    definidas.add(alias.asname or alias.name.split(".")[0])
+
+        # Solo miramos las privadas (_algo): son las del propio módulo, así
+        # que no hay falsos positivos con builtins ni con lo importado.
+        faltan = set()
+        for nodo in ast.walk(arbol):
+            if (isinstance(nodo, ast.Call)
+                    and isinstance(nodo.func, ast.Name)
+                    and nodo.func.id.startswith("_")
+                    and nodo.func.id not in definidas):
+                faltan.add(nodo.func.id)
+
+        revisar(not faltan, "%s: sin llamadas a funciones inexistentes"
+                % os.path.basename(ruta),
+                "-> falta %s" % ", ".join(sorted(faltan)))
+
+
 def probar_itad(cfg):
     """ITAD: sin key debe callarse, no romper."""
     print("\nIsThereAnyDeal")
@@ -540,6 +582,7 @@ def main():
     print("=" * 62)
     print("SMOKE TEST — psplus-alert")
     print("=" * 62)
+    probar_nombres_existen()
     cfg = probar_config()
     probar_filtros(cfg)
     probar_ruido_real(cfg)
