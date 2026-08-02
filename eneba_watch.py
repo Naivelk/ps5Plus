@@ -27,9 +27,21 @@ import telegram_notify
 
 ARCHIVO = "state/eneba.json"
 
-# "Desde: 93,43 US$" / "Desde: 273.250 COP"
+# "Desde: 93,43 US$" — aparece en tarjetas y recargas.
 RE_DESDE = re.compile(
     r"Desde:?\s*([\d.,]+)\s*(US\$|USD|COP|EUR|€|\$)", re.IGNORECASE)
+
+# Cualquier importe con moneda. Hace falta porque las páginas de JUEGOS no
+# escriben "Desde" por ningún lado: comprobado en la de GTA VI, donde el
+# precio bueno (69,22 US$) sale suelto. Buscando solo "Desde" no se leía nada.
+RE_IMPORTE = re.compile(
+    r"([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(US\$|USD|COP|EUR|€)",
+    re.IGNORECASE)
+
+# Rangos de cordura por moneda, para no confundir un precio con el número de
+# valoraciones, un porcentaje de cashback o el año.
+LIMITES = {"USD": (1.0, 1000.0), "EUR": (1.0, 1000.0),
+           "COP": (3000.0, 5000000.0)}
 
 
 def _a_numero(bruto):
@@ -55,14 +67,73 @@ def _moneda(simbolo):
 
 
 def extraer(texto):
-    """Saca (precio, moneda) del texto visible de la página."""
-    m = RE_DESDE.search(texto or "")
-    if not m:
+    """Saca (precio, moneda) del texto visible de la página.
+
+    Primero busca "Desde: X", que es lo que usan las tarjetas y es inequívoco.
+    Si no está —las páginas de juegos no lo escriben— se queda con el importe
+    MÁS BAJO que tenga pinta de precio: en Eneba venden varios vendedores el
+    mismo producto y el que interesa siempre es el más barato.
+    """
+    texto = texto or ""
+    m = RE_DESDE.search(texto)
+    if m:
+        try:
+            return _a_numero(m.group(1)), _moneda(m.group(2))
+        except ValueError:
+            pass
+
+    candidatos = []
+    for m in RE_IMPORTE.finditer(texto):
+        try:
+            valor = _a_numero(m.group(1))
+        except ValueError:
+            continue
+        moneda = _moneda(m.group(2))
+        bajo, alto = LIMITES.get(moneda, (1.0, 1000.0))
+        if bajo <= valor <= alto:
+            candidatos.append((valor, moneda))
+    if not candidatos:
         return None, None
-    try:
-        return _a_numero(m.group(1)), _moneda(m.group(2))
-    except ValueError:
-        return None, None
+    return min(candidatos, key=lambda c: c[0])
+
+
+def comparar_regiones(nombre, lecturas, referencia, ahorro_minimo):
+    """¿Merece la pena comprar la versión de otra región?
+
+    `lecturas` es [(region, precio, moneda), ...]. Se compara contra la región
+    de referencia (la que ya puedes usar). Devuelve None si no hay nada que
+    contar, o un dict con la mejor alternativa.
+
+    Ojo con lo que esto significa en la práctica: una key de otra región
+    normalmente exige una cuenta PSN de ESA región. Es una compra distinta,
+    no un descuento sin más, y por eso el aviso lo dice.
+    """
+    validas = [(r, p, m) for r, p, m in lecturas if p is not None]
+    if len(validas) < 2:
+        return None
+
+    ref = next((x for x in validas if x[0] == referencia), None)
+    if ref is None:
+        return None
+    _, precio_ref, moneda_ref = ref
+
+    # Solo comparamos dentro de la misma moneda: convertir aquí sería inventar.
+    alternativas = [x for x in validas
+                    if x[0] != referencia and x[2] == moneda_ref]
+    if not alternativas:
+        return None
+
+    mejor = min(alternativas, key=lambda x: x[1])
+    region, precio, moneda = mejor
+    if precio >= precio_ref:
+        return None
+    ahorro = precio_ref - precio
+    pct = ahorro * 100.0 / precio_ref
+    if pct < ahorro_minimo:
+        return None
+    return {"nombre": nombre, "region": region, "precio": precio,
+            "moneda": moneda, "precio_ref": precio_ref,
+            "region_ref": referencia, "ahorro": ahorro, "pct": pct}
 
 
 def _leer_estado():
@@ -111,14 +182,17 @@ def decidir(nombre, precio, moneda, previo, objetivo):
 
 def _texto_pagina(pagina, url, espera):
     pagina.goto(url, wait_until="domcontentloaded", timeout=60000)
-    # El precio se pinta después de hidratar React; sin esta espera se lee
-    # la página vacía y parece que Eneba nos ha bloqueado.
+    # El precio se pinta después de hidratar React. Sin esperar, la primera
+    # lectura sale VACÍA y parece que Eneba nos ha bloqueado — pasó de verdad
+    # al probar la página de GTA VI. Esperamos a que aparezca cualquier
+    # importe con moneda, no la palabra "Desde", que en juegos no existe.
     try:
         pagina.wait_for_function(
-            "() => /Desde:?\\s*[\\d.,]+/.test(document.body.innerText)",
+            "() => /[\\d][\\d.,]*\\s*(US\\$|USD|COP|EUR|\\u20ac)/.test("
+            "document.body.innerText)",
             timeout=espera * 1000)
     except Exception:
-        pass                          # seguimos: quizá el texto cambió
+        pass                          # seguimos: quizá cambió el formato
     return pagina.inner_text("body")
 
 
@@ -139,6 +213,7 @@ def main():
     espera = cfg.get("espera_segundos", 20)
     estado = _leer_estado()
     avisos, errores = [], []
+    comparaciones, enlaces = [], {}
 
     from playwright.sync_api import sync_playwright
 
@@ -187,6 +262,33 @@ def main():
                     "url": url, "extra": extra,
                 })
 
+        # --- Arbitraje entre regiones -------------------------------------
+        # El mismo juego cuesta distinto según la región de la key. Medido en
+        # vivo: GTA VI (PS5) a 69,22 US$ la de India contra 82,53 la de EE.UU.
+        for grupo in cfg.get("comparar", []) or []:
+            nombre = grupo.get("nombre", "?")
+            lecturas = []
+            for var in grupo.get("variantes", []) or []:
+                url = var.get("url")
+                if not url:
+                    continue
+                try:
+                    texto = _texto_pagina(pagina, url, espera)
+                except Exception as ex:
+                    print("[Eneba/regiones] %s: %s" % (nombre, str(ex)[:80]))
+                    continue
+                precio, moneda = extraer(texto)
+                print("[Eneba/regiones] %s (%s) -> %s %s"
+                      % (nombre, var.get("region"), precio, moneda))
+                lecturas.append((var.get("region"), precio, moneda))
+                enlaces[(nombre, var.get("region"))] = url
+
+            hallazgo = comparar_regiones(
+                nombre, lecturas, grupo.get("referencia"),
+                cfg.get("ahorro_minimo_pct", 10))
+            if hallazgo:
+                comparaciones.append(hallazgo)
+
         navegador.close()
 
     _guardar_estado(estado)
@@ -202,6 +304,25 @@ def main():
         print("Avisos enviados: %d" % len(avisos))
     else:
         print("Sin bajadas de precio.")
+
+    if comparaciones:
+        lineas = ["🌍 <b>Más barato en otra región</b>", ""]
+        for c in comparaciones:
+            url = enlaces.get((c["nombre"], c["region"]), "")
+            titulo = ('<a href="%s"><b>%s</b></a>' % (url, c["nombre"])
+                      if url else "<b>%s</b>" % c["nombre"])
+            lineas.append(
+                "• %s\n   %s: <b>%.2f %s</b> · %s: %.2f %s\n"
+                "   ahorras %.2f %s (%.0f%%)"
+                % (titulo, c["region"], c["precio"], c["moneda"],
+                   c["region_ref"], c["precio_ref"], c["moneda"],
+                   c["ahorro"], c["moneda"], c["pct"]))
+        lineas.append("\n⚠️ <i>Una key de otra región suele necesitar una "
+                      "cuenta PSN de esa misma región. Es una compra aparte, "
+                      "no un descuento en tu cuenta de siempre — comprueba las "
+                      "restricciones en la página antes de pagar.</i>")
+        telegram_notify.enviar_texto_suelto("\n".join(lineas))
+        print("Comparaciones de región enviadas: %d" % len(comparaciones))
 
     # Solo damos la voz de alarma si fallaron TODOS: que falle uno es normal.
     if errores and len(errores) >= len(productos):

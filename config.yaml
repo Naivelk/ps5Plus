@@ -390,6 +390,23 @@ latido:
 # eso hacía que una oferta repetida meses después no volviera a avisar nunca.
 dias_recordar: 45
 
+# --------- LO QUE MÁS TE IMPORTA ---------
+# Cualquier oferta de estos títulos entra SIEMPRE, sin exigirle el descuento
+# mínimo, y sale la primera en el resumen con 🎯. Es la forma de que un -20%
+# en GTA VI no quede tapado por un -85% de un juego que no te interesa.
+# Añade lo que quieras: se busca en el título, por palabra completa.
+seguimiento:
+  - ps plus
+  - ps+
+  - playstation plus
+  - gta 6
+  - gta vi
+  - grand theft auto vi
+  - fifa 27
+  - fc 27
+  - ea sports fc 27
+  - ea fc 27
+
 # --------- OFERTONES DE JUEGOS (cualquier juego, no solo PS Plus) ---------
 # Trae lo NUEVO de los subs de ofertas y se queda solo con lo que supere el
 # descuento mínimo. El umbral es la única defensa contra el ruido: r/GameDeals
@@ -432,6 +449,29 @@ eneba:
       url: "https://www.eneba.com/latam/psn-playstation-plus-premium-12-months-psn-key-united-states"
     - nombre: "GTA VI (PS5, global)"
       url: "https://www.eneba.com/latam/psn-grand-theft-auto-vi-ps5-psn-key-global"
+
+  # Cuánto más barata tiene que ser otra región para que te avise.
+  ahorro_minimo_pct: 10
+
+  # ARBITRAJE ENTRE REGIONES. El mismo juego cuesta distinto según la región
+  # de la key. Medido en vivo el 2026-08-02: GTA VI (PS5) a 69,22 US$ la de
+  # India contra 82,53 la de EE.UU. — un 16% menos.
+  #
+  # OJO: una key de otra región normalmente exige una cuenta PSN de ESA
+  # región. Es una compra aparte, no un descuento en tu cuenta de siempre.
+  # `referencia` es la región que ya puedes usar hoy; contra esa se compara.
+  comparar:
+    - nombre: "GTA VI (PS5)"
+      referencia: "EE.UU."
+      variantes:
+        - region: "EE.UU."
+          url: "https://www.eneba.com/latam/psn-grand-theft-auto-vi-ps5-psn-key-united-states"
+        - region: "India"
+          url: "https://www.eneba.com/latam/psn-grand-theft-auto-vi-ps5-psn-key-india"
+        - region: "Europa"
+          url: "https://www.eneba.com/latam/psn-grand-theft-auto-vi-ps5-psn-key-europe"
+        - region: "Global"
+          url: "https://www.eneba.com/latam/psn-grand-theft-auto-vi-ps5-psn-key-global"
 
 # --------- REDDIT (la fuente principal) ---------
 # r/PS4Deals y r/GameDeals publican casi todos los descuentos de PS Plus con

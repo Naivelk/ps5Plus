@@ -249,6 +249,20 @@ def probar_ofertones(cfg):
     revisar(50 <= minimo <= 95,
             "descuento_minimo razonable (50-95)", "-> %r" % minimo)
 
+    # Lo que sigues no puede quedar tapado por un ofertón cualquiera.
+    seguidos = cfg.get("seguimiento") or []
+    revisar(seguidos, "hay lista de seguimiento")
+    for titulo in ("GTA VI Deluxe Edition PS5 -20%",
+                   "[PSN] EA Sports FC 27 - $41.99 (30% off)",
+                   "PS Plus 12 meses"):
+        it = {"titulo": titulo, "descripcion": "", "url": ""}
+        revisar(code_filter.es_seguido(it, seguidos),
+                "sigue: %s" % titulo[:40])
+
+    it = {"titulo": "Random Indie Puzzle Game -90%", "descripcion": "", "url": ""}
+    revisar(not code_filter.es_seguido(it, seguidos),
+            "no marca como seguido un juego cualquiera")
+
 
 def probar_eneba(cfg):
     """Lectura del precio de Eneba a partir del texto de la página."""
@@ -257,7 +271,13 @@ def probar_eneba(cfg):
         ("Desde:\n93,43 US$\nNo es el precio final", 93.43, "USD"),
         ("Desde: 273.250 COP", 273250.0, "COP"),
         ("Desde: 1.234,56 COP", 1234.56, "COP"),
+        # Página de JUEGO: no escribe "Desde" por ningún lado. Texto real de
+        # la de GTA VI, donde el precio bueno es el más bajo de los tres.
+        ("Grand Theft Auto VI (PS5) PSN Key INDIA\n31\n76,14 US$\n"
+         "76,14 US$\n69,22 US$\n15% de Cashback", 69.22, "USD"),
         ("Sin precio en esta página", None, None),
+        # El "31" de valoraciones y el "15" del cashback no son precios.
+        ("Valoraciones 31\n15% de Cashback", None, None),
     ]
     for texto, ep, em in casos:
         igual(eneba_watch.extraer(texto), (ep, em),
@@ -279,6 +299,37 @@ def probar_eneba(cfg):
     urls = [p.get("url", "") for p in (cfg.get("eneba") or {}).get("productos", [])]
     revisar(urls and all(u.startswith("https://www.eneba.com/") for u in urls),
             "todas las URLs de Eneba son de eneba.com")
+
+    # --- arbitraje entre regiones, con los precios reales medidos ---
+    print("\nEneba: comparación entre regiones")
+    lecturas = [("EE.UU.", 82.53, "USD"), ("India", 69.22, "USD"),
+                ("Europa", 88.0, "USD")]
+    h = eneba_watch.comparar_regiones("GTA VI", lecturas, "EE.UU.", 10)
+    revisar(h is not None, "detecta que India sale más barata")
+    if h:
+        igual(h["region"], "India", "elige la región más barata")
+        revisar(abs(h["ahorro"] - 13.31) < 0.01, "calcula bien el ahorro")
+        revisar(15 < h["pct"] < 17, "calcula bien el porcentaje (~16%)")
+
+    # Si la diferencia es pequeña no merece la pena montar otra cuenta.
+    h = eneba_watch.comparar_regiones(
+        "X", [("EE.UU.", 80.0, "USD"), ("India", 77.0, "USD")], "EE.UU.", 10)
+    revisar(h is None, "ignora diferencias por debajo del mínimo")
+
+    # Mezclar monedas sería inventarse un tipo de cambio.
+    h = eneba_watch.comparar_regiones(
+        "X", [("EE.UU.", 80.0, "USD"), ("CO", 200000.0, "COP")], "EE.UU.", 10)
+    revisar(h is None, "no compara entre monedas distintas")
+
+    h = eneba_watch.comparar_regiones(
+        "X", [("EE.UU.", 80.0, "USD"), ("India", None, None)], "EE.UU.", 10)
+    revisar(h is None, "una lectura fallida no genera comparación falsa")
+
+    grupos = (cfg.get("eneba") or {}).get("comparar", []) or []
+    for g in grupos:
+        regiones = [v.get("region") for v in g.get("variantes", [])]
+        revisar(g.get("referencia") in regiones,
+                "la referencia de %r está entre sus variantes" % g.get("nombre"))
 
 
 def probar_precios(cfg):

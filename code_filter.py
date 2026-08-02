@@ -49,6 +49,16 @@ def es_relevante(item, palabras_psplus, palabras_suscripcion=(), senales_codigo=
             or _contiene(titulo, senales_codigo))
 
 
+def es_seguido(item, seguimiento):
+    """True si el título nombra algo de tu lista de seguimiento.
+
+    Lo que está aquí se salta el umbral de descuento y sale primero: si no,
+    un -20% en el juego que llevas meses esperando queda enterrado bajo un
+    -85% de algo que no piensas comprar.
+    """
+    return _contiene(item.get("titulo", ""), seguimiento)
+
+
 def es_tarjeta_psn(item, palabras_tarjeta):
     """True si el título habla de saldo/tarjeta PSN.
 

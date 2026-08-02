@@ -129,6 +129,7 @@ def main():
     ocultar_riesgo = config.get("ocultar_sospechosos", False)
     min_descuento = (config.get("ofertas_juegos", {}) or {}).get(
         "descuento_minimo", 75)
+    seguimiento = config.get("seguimiento", [])
 
     limite_fecha = (datetime.datetime.now(datetime.timezone.utc)
                     .replace(tzinfo=None) - datetime.timedelta(days=max_dias))
@@ -157,9 +158,12 @@ def main():
         # supera tu umbral; si no, esto sería una manguera de decenas al día.
         if it.get("solo_oferton"):
             pct = code_filter.extraer_descuento(it["titulo"])
-            if pct is None or pct < min_descuento:
+            # Lo que sigues entra aunque el descuento sea flojo: un -20% en
+            # GTA VI te interesa más que un -85% de un juego cualquiera.
+            seguido = code_filter.es_seguido(it, seguimiento)
+            if not seguido and (pct is None or pct < min_descuento):
                 continue
-            it["categoria"] = "oferton"
+            it["categoria"] = "seguimiento" if seguido else "oferton"
             it["descuento"] = pct
             it["precio"], it["moneda"] = code_filter.extraer_precio(it["titulo"])
             it["chollo"] = False
@@ -212,7 +216,7 @@ def main():
     # 3) Ordenar: códigos gratis primero (vuelan), luego chollos, luego el resto.
     #    Dentro de cada grupo, lo de tu región antes que lo que no puedes usar.
     orden_nivel = {"ok": 0, "duda": 1, "riesgo": 2}
-    orden_cat = {"codigo": 0, "tarjeta": 1, "oferton": 3}   # el resto, en medio
+    orden_cat = {"seguimiento": 0, "codigo": 1, "tarjeta": 2, "oferton": 4}
     nuevos.sort(key=lambda x: (
         orden_cat.get(x["categoria"], 2),
         not x["chollo"],

@@ -32,6 +32,31 @@ Por eso el bot vigila las tarjetas aparte, en su propia sección 💳. Se
 configuran en `palabras_tarjeta_psn` (para noticias y Reddit) y en
 `eneba.productos` (para precios exactos).
 
+## Lo que sigues manda
+
+`seguimiento` en el config es la lista de lo que de verdad te importa (PS
+Plus, GTA VI, FIFA 27…). Lo que esté ahí:
+
+- entra **aunque el descuento sea flojo** — un -20% en GTA VI vale más que un
+  -85% de un juego que no piensas comprar;
+- sale **el primero** del resumen, con 🎯.
+
+## Arbitraje entre regiones
+
+El mismo juego cuesta distinto según la región de la key. Medido el
+2026-08-02 en Eneba: **GTA VI (PS5) a 69,22 US$ la de India contra 82,53 la
+de EE.UU.** — un 16% menos.
+
+Se configura en `eneba.comparar`: pones las variantes regionales del mismo
+juego y cuál es tu `referencia` (la región que ya puedes usar). El bot avisa
+cuando otra región baja de `ahorro_minimo_pct`.
+
+**Léelo con cuidado antes de comprar:** una key de otra región normalmente
+exige una cuenta PSN de esa misma región. Es una compra aparte, no un
+descuento en tu cuenta de siempre. El aviso lo recuerda cada vez, y sólo
+compara precios dentro de la misma moneda — convertir monedas aquí sería
+inventarse un tipo de cambio.
+
 ## Ofertones de cualquier juego
 
 Además de PS Plus, el bot trae lo nuevo de r/GameDeals y r/PS4Deals y se

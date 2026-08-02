@@ -6,6 +6,7 @@ import requests
 # Secciones del resumen, en orden. Lo urgente arriba: los códigos gratis
 # duran minutos, las ofertas duran días.
 SECCIONES = [
+    ("seguimiento", "🎯 <b>Lo que sigues</b>"),
     ("codigo", "🎁 <b>Códigos gratis / sorteos</b>"),
     ("tarjeta", "💳 <b>Saldo PSN con descuento</b>"),
     ("chollo", "🔥 <b>Ofertas bajo tu precio objetivo</b>"),
@@ -20,7 +21,7 @@ def _escapar(t):
 
 def _bucket(it):
     cat = it.get("categoria")
-    if cat in ("codigo", "tarjeta", "oferton"):
+    if cat in ("seguimiento", "codigo", "tarjeta", "oferton"):
         return cat
     if it.get("chollo"):
         return "chollo"
