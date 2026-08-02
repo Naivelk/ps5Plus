@@ -32,6 +32,27 @@ Por eso el bot vigila las tarjetas aparte, en su propia sección 💳. Se
 configuran en `palabras_tarjeta_psn` (para noticias y Reddit) y en
 `eneba.productos` (para precios exactos).
 
+## Ofertas que son noticia, no una más del montón
+
+`itad_source.py` usa [IsThereAnyDeal](https://isthereanydeal.com) y es la
+única fuente capaz de decir si un precio **es el más bajo de la historia**.
+Solo deja pasar lo que cumple las tres a la vez:
+
+1. **Nuevo mínimo histórico** (`flag: N`) — nunca había estado tan barato;
+2. **-60% o más** (`descuento_minimo`);
+3. **buena nota** (`nota_minima: 75`) — un juego malo al -90% sigue siendo malo.
+
+De paso cubre Steam, Fanatical, G2A, Kinguin, Instant Gaming y
+GreenManGaming en una sola llamada, sin scrapear ninguna (esas webs bloquean
+scripts; ITAD ya las recopila).
+
+Necesita el secret `ITAD_API_KEY`, gratis en
+[isthereanydeal.com/apps](https://isthereanydeal.com/apps/). **Sin la key
+esta fuente se calla y el resto del bot funciona igual.**
+
+Si un juego no tiene nota, se deja pasar: no tener dato significa "no sé", no
+"es malo".
+
 ## Lo que sigues manda
 
 `seguimiento` en el config es la lista de lo que de verdad te importa (PS

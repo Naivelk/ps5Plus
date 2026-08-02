@@ -14,6 +14,7 @@ import yaml
 import reddit_source
 import rss_source
 import store_source
+import itad_source
 import code_filter
 import telegram_notify
 import latido
@@ -100,8 +101,9 @@ def main():
     of_items, of_err = reddit_source.obtener_ofertas(config)
     rss_items, rss_err = rss_source.obtener(config)
     st_items, st_err = store_source.obtener(config)
-    items = st_items + rd_items + rss_items + of_items
-    errores = rd_err + rss_err + st_err + of_err
+    it_items, it_err = itad_source.obtener(config)
+    items = st_items + it_items + rd_items + rss_items + of_items
+    errores = rd_err + rss_err + st_err + of_err + it_err
     print(f"Encontrados {len(items)} elementos en total.")
     if errores:
         print("Errores técnicos:", errores)
@@ -151,6 +153,23 @@ def main():
             continue
 
         if it["id"] in vistos:
+            continue
+
+        # ITAD llega ya estructurado desde una API: título, precio, descuento
+        # y si es mínimo histórico. Pasarlo por los filtros pensados para
+        # titulares de prensa solo lo estropearía. Sí pasa el anti-estafa,
+        # que mira el dominio de destino.
+        if it.get("directo_texto"):
+            if code_filter.es_seguido(it, seguimiento):
+                it["categoria"] = "seguimiento"
+            nivel, motivos = code_filter.evaluar(it, senales_estafa, confiables,
+                                                 acortadores)
+            it["nivel"] = nivel
+            it["etiqueta"] = code_filter.ETIQUETA[nivel]
+            it["motivos"] = motivos
+            if ocultar_riesgo and nivel == "riesgo":
+                continue
+            nuevos.append(it)
             continue
 
         # Novedades de los subs de ofertas: no hablan de PS Plus, así que no

@@ -26,6 +26,7 @@ import yaml
 import code_filter
 import historial
 import store_source
+import itad_source
 import eneba_watch
 import latido
 import main as bot
@@ -262,6 +263,43 @@ def probar_ofertones(cfg):
     it = {"titulo": "Random Indie Puzzle Game -90%", "descripcion": "", "url": ""}
     revisar(not code_filter.es_seguido(it, seguidos),
             "no marca como seguido un juego cualquiera")
+
+
+def probar_itad(cfg):
+    """ITAD: sin key debe callarse, no romper."""
+    print("\nIsThereAnyDeal")
+    icfg = cfg.get("itad") or {}
+    revisar(icfg.get("solo_nuevo_minimo") is True,
+            "pide solo NUEVO mínimo histórico (lo que hace noticia una oferta)")
+    revisar(50 <= icfg.get("descuento_minimo", 0) <= 95,
+            "descuento_minimo razonable", "-> %r" % icfg.get("descuento_minimo"))
+    revisar(0 <= icfg.get("nota_minima", -1) <= 100,
+            "nota_minima entre 0 y 100", "-> %r" % icfg.get("nota_minima"))
+    revisar(len(icfg.get("pais", "")) == 2,
+            "pais con código de dos letras", "-> %r" % icfg.get("pais"))
+
+    # Sin la key la fuente se salta sola: no debe tumbar el bot.
+    previo = os.environ.pop("ITAD_API_KEY", None)
+    try:
+        items, errores = itad_source.obtener(cfg)
+        igual((items, errores), ([], []), "sin key: se calla y no da error")
+    finally:
+        if previo is not None:
+            os.environ["ITAD_API_KEY"] = previo
+
+    # Y desactivado tampoco hace nada, aunque hubiera key.
+    items, errores = itad_source.obtener({"itad": {"activo": False}})
+    igual((items, errores), ([], []), "desactivado: no hace nada")
+
+    # El título de un aviso tiene que decir lo importante de un vistazo.
+    oferta = {"price": {"amount": 11.99, "currency": "USD"},
+              "regular": {"amount": 59.99, "currency": "USD"},
+              "shop": {"name": "Fanatical"}, "cut": 80, "flag": "N"}
+    t = itad_source._titulo("Elden Ring", oferta, (94, 1200))
+    for trozo in ("Elden Ring", "11.99", "-80%", "Fanatical", "nota 94"):
+        revisar(trozo in t, "el aviso incluye %r" % trozo)
+    revisar("nunca había estado tan barato" in t,
+            "avisa de que es mínimo histórico")
 
 
 def probar_eneba(cfg):
@@ -507,6 +545,7 @@ def main():
     probar_ruido_real(cfg)
     probar_tarjetas(cfg)
     probar_ofertones(cfg)
+    probar_itad(cfg)
     probar_eneba(cfg)
     probar_precios(cfg)
     probar_estafas(cfg)

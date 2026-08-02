@@ -41,6 +41,8 @@ jobs:
           # de Reddit, que desde las IPs de GitHub Actions come 429 seguido.
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          # Sin esta key, itad_source se calla y el resto sigue igual.
+          ITAD_API_KEY: ${{ secrets.ITAD_API_KEY }}
         run: python main.py
 
       - name: Guardar el estado

@@ -390,6 +390,21 @@ latido:
 # eso hacía que una oferta repetida meses después no volviera a avisar nunca.
 dias_recordar: 45
 
+# --------- ISTHEREANYDEAL (ofertas que sí son noticia) ---------
+# Necesita el secret ITAD_API_KEY (gratis en isthereanydeal.com/apps/).
+# Sin él esta fuente se calla y el resto del bot funciona igual.
+#
+# Es la única fuente que sabe si un precio es el más bajo de la HISTORIA, y
+# la que cubre Steam, Fanatical, G2A, Kinguin, Instant Gaming, GreenManGaming
+# y demás de una sola llamada, sin scrapear ninguna.
+itad:
+  activo: true
+  pais: CO                  # dos letras; marca la tienda y la moneda
+  solo_nuevo_minimo: true   # solo lo que NUNCA había estado tan barato
+  descuento_minimo: 60      # y además, al menos -60%
+  nota_minima: 75           # y con buena nota: fuera el relleno
+  limite: 40
+
 # --------- LO QUE MÁS TE IMPORTA ---------
 # Cualquier oferta de estos títulos entra SIEMPRE, sin exigirle el descuento
 # mínimo, y sale la primera en el resumen con 🎯. Es la forma de que un -20%
