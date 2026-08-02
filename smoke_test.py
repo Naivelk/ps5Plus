@@ -250,6 +250,28 @@ def probar_ofertones(cfg):
     revisar(50 <= minimo <= 95,
             "descuento_minimo razonable (50-95)", "-> %r" % minimo)
 
+    # Estar en la lista de seguimiento baja el listón del descuento, pero NO
+    # exime de las exclusiones. Estos siete llegaron al chat de verdad: son
+    # el catálogo mensual de meses ya pasados, y colaban porque el título
+    # lleva "PS Plus".
+    print("\nlo seguido no se salta las exclusiones")
+    for mes in ("July", "June", "May", "April", "March", "February", "January"):
+        titulo = "PS Plus Essential: %s 2026 Now Available" % mes
+        it = {"titulo": titulo, "descripcion": "", "url": ""}
+        seguido = code_filter.es_seguido(it, cfg.get("seguimiento") or [])
+        excluido = code_filter.esta_excluido(it, cfg["palabras_excluir"],
+                                             cfg["palabras_excluir_titulo"])
+        revisar(seguido and excluido,
+                "catálogo mensual (%s) se descarta aunque sea 'seguido'" % mes)
+
+    # Y una oferta de verdad de lo que sigues tiene que seguir pasando.
+    it = {"titulo": "[PSN] PS Plus 12 Month Essential - $39.99",
+          "descripcion": "", "url": ""}
+    revisar(code_filter.es_seguido(it, cfg.get("seguimiento") or [])
+            and not code_filter.esta_excluido(it, cfg["palabras_excluir"],
+                                              cfg["palabras_excluir_titulo"]),
+            "una oferta real de PS Plus sí pasa")
+
     # Lo que sigues no puede quedar tapado por un ofertón cualquiera.
     seguidos = cfg.get("seguimiento") or []
     revisar(seguidos, "hay lista de seguimiento")
@@ -367,6 +389,22 @@ def probar_itad(cfg):
         revisar(trozo in t, "el aviso incluye %r" % trozo)
     revisar("nunca había estado tan barato" in t,
             "avisa de que es mínimo histórico")
+    revisar("reseñas" in t, "el aviso dice cuántas reseñas tiene")
+
+    # --- fama: los casos REALES que llenaron el chat en la primera prueba ---
+    nota_min = icfg.get("nota_minima", 75)
+    res_min = icfg.get("resenas_minimas", 1000)
+    casos = [
+        ((94, 45000), True, "Elden Ring: nota alta y muchísimas reseñas"),
+        ((100, 3), False, "'no sleep for sole': nota 100 con 3 reseñas"),
+        ((93, 12), False, "'Age of Fear 3': nota 93 con 12 reseñas"),
+        ((91, 40), False, "indie con nota 91 y 40 reseñas"),
+        ((60, 90000), False, "muy conocido pero mal valorado"),
+        (None, False, "sin datos: no consta que sea famoso"),
+    ]
+    for nota, esperado, desc in casos:
+        igual(itad_source.es_famoso(nota, nota_min, res_min), esperado,
+              "fama: %s" % desc)
 
 
 def probar_eneba(cfg):

@@ -176,11 +176,21 @@ def main():
         # pasan por el filtro de relevancia. Solo entran si el descuento
         # supera tu umbral; si no, esto sería una manguera de decenas al día.
         if it.get("solo_oferton"):
+            # Estar en la lista de seguimiento baja el listón del descuento,
+            # NO exime del resto de filtros. Sin esto llegaban al chat siete
+            # "PS Plus Essential: <mes> 2026 Now Available" de meses pasados:
+            # llevaban "ps plus" en el título y se saltaban las exclusiones
+            # del catálogo mensual y el filtro de antigüedad.
+            if code_filter.esta_excluido(it, excluir, excluir_tit):
+                continue
+            fecha = it.get("fecha_dt")
+            if fecha and fecha < limite_fecha:
+                continue
             pct = code_filter.extraer_descuento(it["titulo"])
-            # Lo que sigues entra aunque el descuento sea flojo: un -20% en
-            # GTA VI te interesa más que un -85% de un juego cualquiera.
             seguido = code_filter.es_seguido(it, seguimiento)
             if not seguido and (pct is None or pct < min_descuento):
+                continue
+            if code_filter.es_pregunta_o_queja(it) and pct is None:
                 continue
             it["categoria"] = "seguimiento" if seguido else "oferton"
             it["descuento"] = pct

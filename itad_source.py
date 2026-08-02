@@ -51,11 +51,30 @@ def _precio(obj):
     return obj.get("amount"), obj.get("currency")
 
 
-def notas(gids, clave, pais):
-    """Nota de cada juego, para poder descartar el relleno.
+def es_famoso(nota, nota_min, resenas_min):
+    """¿Es un juego conocido y bien valorado, o relleno con buena media?
 
-    Devuelve {gid: (nota, cuantas_reseñas)}. Si algo falla devolvemos vacío:
-    quedarse sin nota debe significar "no sé", no "es malo".
+    La nota sola no vale: en la primera prueba real llegaron cosas como "no
+    sleep for sole" con nota 100 y "Age of Fear 3" con 93. Notas altísimas
+    sacadas de un puñado de reseñas. Lo que separa un juegazo de un desconocido
+    es CUÁNTA gente lo ha valorado, así que se exigen las dos cosas.
+
+    Sin datos se descarta: si buscas juegos famosos, no tener reseñas ya es
+    una respuesta.
+    """
+    if not nota:
+        return False
+    valor, cuenta = nota
+    if nota_min and valor < nota_min:
+        return False
+    return not resenas_min or (cuenta or 0) >= resenas_min
+
+
+def notas(gids, clave, pais):
+    """Nota y número de reseñas de cada juego.
+
+    Devuelve {gid: (nota, cuantas_reseñas)}. El número de reseñas importa
+    tanto como la nota: es la señal de si el juego es conocido.
     """
     salida = {}
     for gid in gids:
@@ -93,7 +112,13 @@ def _titulo(juego, oferta, nota):
     if oferta.get("flag") == FLAG_NUEVO_MINIMO:
         trozos.append("🏆 nunca había estado tan barato")
     if nota:
-        trozos.append("nota %d" % int(nota[0]))
+        # La cantidad de reseñas va delante: es lo que distingue un juegazo
+        # de un desconocido con nota alta y cuatro votos.
+        valor, cuenta = nota
+        if cuenta:
+            trozos.append("nota %d (%s reseñas)" % (int(valor), f"{cuenta:,}"))
+        else:
+            trozos.append("nota %d" % int(valor))
     return " · ".join(trozos)
 
 
@@ -112,8 +137,12 @@ def obtener(config):
     pais = cfg.get("pais", "CO")
     corte_min = cfg.get("descuento_minimo", 60)
     nota_min = cfg.get("nota_minima", 75)
+    resenas_min = cfg.get("resenas_minimas", 1000)
     limite = cfg.get("limite", 40)
     solo_nuevos = cfg.get("solo_nuevo_minimo", True)
+    solo_juegos = cfg.get("solo_juegos", True)
+    tiendas_fuera = [t.lower() for t in cfg.get("tiendas_excluidas", [])]
+    plataformas = [p.lower() for p in cfg.get("plataformas", [])]
 
     filtros = {"cut": {"min": corte_min, "max": 100}}
     if solo_nuevos:
@@ -135,22 +164,41 @@ def obtener(config):
         return [], []
 
     puntuaciones = notas([j.get("id") for j in lista if j.get("id")],
-                         clave, pais) if nota_min else {}
+                         clave, pais)
 
-    resultados, sin_nota = [], 0
+    resultados = []
+    descartes = {"tipo": 0, "tienda": 0, "plataforma": 0, "poco_conocido": 0}
     for juego in lista:
         oferta = juego.get("deal") or {}
         precio, moneda = _precio(oferta.get("price"))
         if precio is None:
             continue
+
+        # DLC y packs fuera: en la primera prueba llegaron "SOEDESCO
+        # Publishing Bundle" y dos "Season Pass" con descuentos enormes que
+        # no son juegos.
+        if solo_juegos and juego.get("type") not in (None, "game"):
+            descartes["tipo"] += 1
+            continue
+
+        tienda = (oferta.get("shop") or {}).get("name", "")
+        if any(t in tienda.lower() for t in tiendas_fuera):
+            descartes["tienda"] += 1
+            continue
+
+        if plataformas:
+            suyas = [(p.get("name") or "").lower()
+                     for p in (oferta.get("platforms") or [])]
+            if suyas and not any(
+                    any(p in s for s in suyas) for p in plataformas):
+                descartes["plataforma"] += 1
+                continue
+
         gid = juego.get("id")
         nota = puntuaciones.get(gid)
-
-        # Sin nota no descartamos: significa "no sé", no "es malo".
-        if nota_min and nota and nota[0] < nota_min:
+        if not es_famoso(nota, nota_min, resenas_min):
+            descartes["poco_conocido"] += 1
             continue
-        if nota is None:
-            sin_nota += 1
 
         resultados.append({
             "id": "itad:%s:%s:%.2f" % (gid, (oferta.get("shop") or {}).get("id"),
@@ -173,6 +221,8 @@ def obtener(config):
             "directo_texto": True,
         })
 
-    if sin_nota:
-        print("[ITAD] %d sin nota (se dejan pasar)" % sin_nota)
+    print("[ITAD] %d pasan el filtro | descartados: %s"
+          % (len(resultados),
+             ", ".join("%s=%d" % (k, v) for k, v in descartes.items() if v)
+             or "ninguno"))
     return resultados, []

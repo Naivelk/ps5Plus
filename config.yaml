@@ -402,8 +402,20 @@ itad:
   pais: CO                  # dos letras; marca la tienda y la moneda
   solo_nuevo_minimo: true   # solo lo que NUNCA había estado tan barato
   descuento_minimo: 60      # y además, al menos -60%
-  nota_minima: 75           # y con buena nota: fuera el relleno
+  nota_minima: 75           # y con buena nota...
+  # ...pero la nota sola engaña: llegaron cosas como "no sleep for sole" con
+  # nota 100 sacada de cuatro votos. Lo que separa un juegazo de un
+  # desconocido es cuánta gente lo ha valorado.
+  resenas_minimas: 1000
+  solo_juegos: true         # fuera DLC y packs ("SOEDESCO Publishing Bundle")
   limite: 40
+  # Tiendas de nicho que llenaban el chat de bundles raros a 1,09 USD.
+  tiendas_excluidas:
+    - MacGameStore
+    - WinGameStore
+  # Deja la lista vacía para no filtrar por plataforma. Ojo: ITAD cubre sobre
+  # todo PC, así que filtrar por PlayStation aquí deja casi todo fuera.
+  plataformas: []
 
 # --------- LO QUE MÁS TE IMPORTA ---------
 # Cualquier oferta de estos títulos entra SIEMPRE, sin exigirle el descuento
