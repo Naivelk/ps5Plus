@@ -180,6 +180,23 @@ def _plausible(valor, nominal):
     return nominal * MARGEN_BAJO <= valor <= nominal * MARGEN_ALTO
 
 
+# Una bandera se distingue de un vistazo mejor que el nombre del país, que en
+# una lista de precios todos parecen iguales.
+BANDERAS = {
+    "india": "🇮🇳", "ee.uu.": "🇺🇸", "eeuu": "🇺🇸", "usa": "🇺🇸",
+    "estados unidos": "🇺🇸", "europa": "🇪🇺", "global": "🌐",
+    "turquía": "🇹🇷", "turquia": "🇹🇷", "brasil": "🇧🇷", "méxico": "🇲🇽",
+    "mexico": "🇲🇽", "españa": "🇪🇸", "espana": "🇪🇸", "francia": "🇫🇷",
+    "colombia": "🇨🇴", "reino unido": "🇬🇧",
+}
+
+
+def _bandera(region):
+    """Bandera + nombre, para que la región se lea sin esfuerzo."""
+    emoji = BANDERAS.get((region or "").strip().lower(), "🏳")
+    return "%s %s" % (emoji, region or "?")
+
+
 def comparar_regiones(nombre, lecturas, referencia, ahorro_minimo):
     """¿Merece la pena comprar la versión de otra región?
 
@@ -376,12 +393,14 @@ def main():
             estado[clave] = {"p": precio, "m": moneda,
                              "f": datetime.date.today().isoformat(),
                              "nombre": nombre}
-            if vuelta:
-                extra.append("%d%% de cashback" % vuelta)
             if avisar:
+                anterior = (previo or {}).get("p")
                 avisos.append({
                     "nombre": nombre, "precio": precio, "moneda": moneda,
-                    "url": url, "extra": extra,
+                    "url": url, "extra": extra, "cashback": vuelta,
+                    "antes": anterior,
+                    "pct": ((anterior - precio) * 100.0 / anterior
+                            if anterior and anterior > precio else None),
                 })
 
         # --- Arbitraje entre regiones -------------------------------------
@@ -416,34 +435,58 @@ def main():
     _guardar_estado(estado)
 
     if avisos:
-        lineas = ["🛒 <b>Eneba — bajada de precio</b>", ""]
+        # Mismo lenguaje visual que el resto del bot: precio primero, luego
+        # la barra con el ahorro en dinero, y el contexto debajo.
+        lineas = ["🛒 <b>ENEBA</b> · bajó de precio\n" + telegram_notify.RAYA]
         for a in avisos:
-            detalle = (" (" + "; ".join(a["extra"]) + ")") if a["extra"] else ""
-            lineas.append('• <a href="%s"><b>%s</b></a>\n   %.2f %s%s'
-                          % (a["url"], a["nombre"], a["precio"], a["moneda"],
-                             detalle))
-        telegram_notify.enviar_texto_suelto("\n".join(lineas))
+            bloque = ['<a href="%s"><b>%s</b></a>' % (a["url"], a["nombre"])]
+            dinero = ["<b>%s</b>" % telegram_notify._importe(a["precio"],
+                                                             a["moneda"])]
+            if a.get("antes"):
+                dinero.append("<s>%s</s>" % telegram_notify._importe(
+                    a["antes"], a["moneda"]))
+            if a.get("pct"):
+                dinero.append("<b>−%.0f%%</b>" % a["pct"])
+            bloque.append("   " + "  ".join(dinero))
+            if a.get("pct"):
+                ahorro = a["antes"] - a["precio"]
+                bloque.append("   %s  ahorras %s"
+                              % (telegram_notify.barra(a["pct"]),
+                                 telegram_notify._importe(ahorro, a["moneda"])))
+            if a.get("cashback"):
+                bloque.append("   💸 %d%% cashback" % a["cashback"])
+            lineas.append("\n".join(bloque))
+        telegram_notify.enviar_texto_suelto("\n\n".join(lineas))
         print("Avisos enviados: %d" % len(avisos))
     else:
         print("Sin bajadas de precio.")
 
     if comparaciones:
-        lineas = ["🌍 <b>Más barato en otra región</b>", ""]
+        lineas = ["🌍 <b>MÁS BARATO EN OTRA REGIÓN</b>\n" + telegram_notify.RAYA]
         for c in comparaciones:
             url = enlaces.get((c["nombre"], c["region"]), "")
             titulo = ('<a href="%s"><b>%s</b></a>' % (url, c["nombre"])
                       if url else "<b>%s</b>" % c["nombre"])
+            # Las dos regiones alineadas una debajo de otra: así se compara de
+            # un vistazo, sin buscar los números dentro de una frase.
             lineas.append(
-                "• %s\n   %s: <b>%.2f %s</b> · %s: %.2f %s\n"
-                "   ahorras %.2f %s (%.0f%%)"
-                % (titulo, c["region"], c["precio"], c["moneda"],
-                   c["region_ref"], c["precio_ref"], c["moneda"],
-                   c["ahorro"], c["moneda"], c["pct"]))
-        lineas.append("\n⚠️ <i>Una key de otra región suele necesitar una "
+                "%s\n"
+                "   %s <b>%s</b>\n"
+                "   %s %s\n"
+                "   %s  ahorras %s <b>(−%.0f%%)</b>"
+                % (titulo,
+                   _bandera(c["region"]),
+                   telegram_notify._importe(c["precio"], c["moneda"]),
+                   _bandera(c["region_ref"]),
+                   telegram_notify._importe(c["precio_ref"], c["moneda"]),
+                   telegram_notify.barra(c["pct"]),
+                   telegram_notify._importe(c["ahorro"], c["moneda"]),
+                   c["pct"]))
+        lineas.append("⚠️ <i>Una key de otra región suele necesitar una "
                       "cuenta PSN de esa misma región. Es una compra aparte, "
                       "no un descuento en tu cuenta de siempre — comprueba las "
                       "restricciones en la página antes de pagar.</i>")
-        telegram_notify.enviar_texto_suelto("\n".join(lineas))
+        telegram_notify.enviar_texto_suelto("\n\n".join(lineas))
         print("Comparaciones de región enviadas: %d" % len(comparaciones))
 
     # Solo damos la voz de alarma si fallaron TODOS: que falle uno es normal.
