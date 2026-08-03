@@ -455,6 +455,23 @@ def probar_eneba(cfg):
     igual(eneba_watch.extraer("Desde: 400,00 US$", 100), (None, None),
           "nominal 100: rechaza un precio de 400")
 
+    # 4) La tarjeta de 50 NO tiene "Desde" en su página, y el bot informó de
+    #    una bajada a 21,09 que no existía. Importes reales de esa página:
+    #    54,04 y 46,98 son precios de vendedores; el resto, la tabla de
+    #    denominaciones sueltas (1 USD, 2 USD, 3 USD...).
+    texto_50 = ("Tarjeta PlayStation Network 50 USD (USA) PSN Key\n"
+                "54,04 US$\n46,98 US$\n"
+                "Valor:\n1 USD\n0,96 US$\n2 USD\n1,93 US$\n3 USD\n2,88 US$\n"
+                "4 USD\n3,88 US$\n21,09 US$")
+    igual(eneba_watch.extraer(texto_50, 50), (46.98, "USD"),
+          "tarjeta de 50 sin 'Desde': coge 46,98, no 21,09 ni 0,96")
+
+    # Y sin nominal se equivocaría: por eso las tarjetas lo llevan en config.
+    precio, _ = eneba_watch.extraer(texto_50)
+    revisar(precio != 46.98,
+            "sin nominal la misma página se lee mal (de ahí el ajuste)",
+            "-> %r" % precio)
+
     # Mismo criterio que el Store: avisar por bajada, no por número fijo.
     avisar, _ = eneba_watch.decidir("x", 93.43, "USD", None, None)
     revisar(not avisar, "primera lectura sin objetivo: no avisa")

@@ -119,11 +119,24 @@ def extraer(texto, nominal=None):
     return min(candidatos, key=lambda c: c[0])
 
 
+# Cuánto puede alejarse el precio de una tarjeta de su valor de cara. Las
+# tarjetas PSN se venden con un descuento moderado (5-15%), nunca a mitad de
+# precio, así que por debajo del 60% lo que hemos leído es otra cosa.
+#
+# Esto no es teoría: la página de la tarjeta de 50 USD lista los importes
+#   54,04 · 46,98 · 0,96 · 1,93 · 2,88 ...
+# donde 46,98 es el precio y el resto son la tabla de denominaciones sueltas.
+# Con el margen anterior (40%) se colaba un 21,09 y el bot avisaba de una
+# "bajada" que no existía.
+MARGEN_BAJO = 0.60
+MARGEN_ALTO = 1.30
+
+
 def _plausible(valor, nominal):
     """Descarta precios imposibles para una tarjeta de valor conocido."""
     if not nominal:
         return True
-    return nominal * 0.4 <= valor <= nominal * 1.5
+    return nominal * MARGEN_BAJO <= valor <= nominal * MARGEN_ALTO
 
 
 def comparar_regiones(nombre, lecturas, referencia, ahorro_minimo):
@@ -210,7 +223,7 @@ def decidir(nombre, precio, moneda, previo, objetivo):
 
 
 def _texto_pagina(pagina, url, espera):
-    pagina.goto(url, wait_until="domcontentloaded", timeout=60000)
+    pagina.goto(url, wait_until="networkidle", timeout=60000)
     # El precio se pinta después de hidratar React. Sin esperar, la primera
     # lectura sale VACÍA y parece que Eneba nos ha bloqueado — pasó de verdad
     # al probar la página de GTA VI. Esperamos a que aparezca cualquier
@@ -227,6 +240,10 @@ def _texto_pagina(pagina, url, espera):
             timeout=espera * 1000)
     except Exception:
         pass                          # seguimos: quizá cambió el formato
+    # Un respiro extra tras la condición: los precios de los distintos
+    # vendedores no aparecen todos a la vez. En un mismo run, GTA VI Global se
+    # leyó bien en un sitio y salió vacío en otro por llegar demasiado pronto.
+    pagina.wait_for_timeout(2500)
     return pagina.inner_text("body")
 
 
