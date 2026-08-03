@@ -191,6 +191,28 @@ BANDERAS = {
 }
 
 
+def _vale_repetir(antes, ahora, cambio_minimo, recordar_dias, hoy=None):
+    """¿Merece la pena volver a contar la misma comparación de regiones?
+
+    La diferencia entre regiones es estable durante semanas, así que repetirla
+    en cada pasada convierte el aviso en ruido de fondo que se deja de leer.
+    Se repite solo si cambió la región ganadora, si el ahorro se movió de
+    verdad, o si ha pasado tiempo suficiente para servir de recordatorio.
+    """
+    if not antes:
+        return True
+    if antes.get("region") != ahora.get("region"):
+        return True
+    if abs((antes.get("pct") or 0) - (ahora.get("pct") or 0)) >= cambio_minimo:
+        return True
+    hoy = hoy or datetime.date.today()
+    try:
+        previa = datetime.date(*[int(x) for x in antes["f"].split("-")[:3]])
+    except (KeyError, ValueError, TypeError):
+        return True
+    return (hoy - previa).days >= recordar_dias
+
+
 def _bandera(region):
     """Bandera + nombre, para que la región se lea sin esfuerzo."""
     emoji = BANDERAS.get((region or "").strip().lower(), "🏳")
@@ -427,8 +449,24 @@ def main():
             hallazgo = comparar_regiones(
                 nombre, lecturas, grupo.get("referencia"),
                 cfg.get("ahorro_minimo_pct", 10))
-            if hallazgo:
-                comparaciones.append(hallazgo)
+            if not hallazgo:
+                continue
+
+            # Sin esto, mientras India siguiera más barata que EE.UU. te
+            # llegaba la MISMA comparación cada 6 horas para siempre. Solo se
+            # repite si la diferencia cambió de verdad o si ha pasado tiempo
+            # suficiente para que valga como recordatorio.
+            clave_cmp = "cmp:" + nombre
+            antes = estado.get(clave_cmp) or {}
+            estado[clave_cmp] = {"pct": hallazgo["pct"],
+                                 "region": hallazgo["region"],
+                                 "f": datetime.date.today().isoformat()}
+            if not _vale_repetir(antes, hallazgo,
+                                 cfg.get("cambio_minimo_pct", 3),
+                                 cfg.get("recordar_cada_dias", 14)):
+                print("[Eneba/regiones] %s: sin cambios, no repito." % nombre)
+                continue
+            comparaciones.append(hallazgo)
 
         navegador.close()
 

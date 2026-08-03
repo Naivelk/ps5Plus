@@ -501,6 +501,12 @@ eneba:
 
   # Cuánto más barata tiene que ser otra región para que te avise.
   ahorro_minimo_pct: 10
+  # La diferencia entre regiones no cambia casi nunca, así que repetir el
+  # aviso cada 6 horas lo convierte en ruido de fondo. Solo se repite si la
+  # diferencia se mueve al menos estos puntos, si cambia la región ganadora,
+  # o si han pasado los días de recordatorio.
+  cambio_minimo_pct: 3
+  recordar_cada_dias: 14
 
   # ARBITRAJE ENTRE REGIONES. El mismo juego cuesta distinto según la región
   # de la key. Medido en vivo el 2026-08-02: GTA VI (PS5) a 69,22 US$ la de

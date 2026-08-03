@@ -600,6 +600,25 @@ def probar_eneba(cfg):
         "X", [("EE.UU.", 80.0, "USD"), ("India", None, None)], "EE.UU.", 10)
     revisar(h is None, "una lectura fallida no genera comparación falsa")
 
+    # No repetir la misma comparación cada 6 horas: la diferencia entre
+    # regiones es estable durante semanas y el aviso se vuelve ruido.
+    hoy = datetime.date(2026, 8, 10)
+    actual = {"region": "India", "pct": 16.1}
+    revisar(eneba_watch._vale_repetir({}, actual, 3, 14, hoy),
+            "primera vez: sí avisa")
+    revisar(not eneba_watch._vale_repetir(
+        {"region": "India", "pct": 16.0, "f": "2026-08-09"}, actual, 3, 14, hoy),
+        "misma diferencia al día siguiente: no repite")
+    revisar(eneba_watch._vale_repetir(
+        {"region": "India", "pct": 8.0, "f": "2026-08-09"}, actual, 3, 14, hoy),
+        "la diferencia creció 8 puntos: sí avisa")
+    revisar(eneba_watch._vale_repetir(
+        {"region": "Europa", "pct": 16.1, "f": "2026-08-09"}, actual, 3, 14, hoy),
+        "cambió la región más barata: sí avisa")
+    revisar(eneba_watch._vale_repetir(
+        {"region": "India", "pct": 16.1, "f": "2026-07-20"}, actual, 3, 14, hoy),
+        "pasaron 14 días: recuerda otra vez")
+
     grupos = (cfg.get("eneba") or {}).get("comparar", []) or []
     for g in grupos:
         regiones = [v.get("region") for v in g.get("variantes", [])]
