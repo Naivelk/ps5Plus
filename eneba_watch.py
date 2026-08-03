@@ -164,8 +164,13 @@ def extraer(texto, nominal=None):
 # donde 46,98 es el precio y el resto son la tabla de denominaciones sueltas.
 # Con el margen anterior (40%) se colaba un 21,09 y el bot avisaba de una
 # "bajada" que no existía.
+# El techo es 0.99 y no 1.0 por una razón de fondo: una tarjeta de saldo
+# SIEMPRE cuesta menos que su valor de cara — nadie compra 100 USD de saldo
+# por 100 USD. Así que un precio igual (o mayor) al nominal no es un precio,
+# es que hemos leído el valor nominal por error. Pasó: la tarjeta de 100 se
+# informó tres veces a "100.00" cuando su página decía "Desde: 93,37 US$".
 MARGEN_BAJO = 0.60
-MARGEN_ALTO = 1.30
+MARGEN_ALTO = 0.99
 
 
 def _plausible(valor, nominal):
@@ -233,12 +238,17 @@ def _guardar_estado(datos):
         f.write(json.dumps(datos, ensure_ascii=False, indent=1, sort_keys=True))
 
 
-def decidir(nombre, precio, moneda, previo, objetivo):
+def decidir(nombre, precio, moneda, previo, objetivo, bajada_minima=2.0):
     """¿Avisar? Devuelve (avisar, texto_extra).
 
     Mismo criterio que el PS Store: avisamos si BAJA respecto a la última
     lectura, no si está por debajo de un número fijo. Si no, o repites el
     mismo aviso cada pocas horas o te callas para siempre.
+
+    `bajada_minima` es el porcentaje que tiene que bajar para molestarte. Sin
+    él llegaban avisos como "47.03 (estaba a 47.04)": un céntimo. Los precios
+    de Eneba se mueven solos entre vendedores, así que sin un mínimo esto se
+    convierte en una alarma cada seis horas por nada.
     """
     extra = []
     avisar = False
@@ -250,11 +260,13 @@ def decidir(nombre, precio, moneda, previo, objetivo):
             extra.append("por debajo de tu objetivo (%.2f)" % objetivo)
     else:
         anterior = previo.get("p")
-        if anterior is not None and precio < anterior:
-            avisar = True
-            extra.append("estaba a %.2f" % anterior)
-            if objetivo is not None and precio <= objetivo:
-                extra.append("bajo tu objetivo")
+        if anterior:
+            caida = (anterior - precio) * 100.0 / anterior
+            if caida >= bajada_minima:
+                avisar = True
+                extra.append("estaba a %.2f (-%.0f%%)" % (anterior, caida))
+                if objetivo is not None and precio <= objetivo:
+                    extra.append("bajo tu objetivo")
     return avisar, extra
 
 
@@ -350,7 +362,8 @@ def main():
             clave = url
             previo = estado.get(clave)
             avisar, extra = decidir(nombre, precio, moneda, previo,
-                                    prod.get("objetivo"))
+                                    prod.get("objetivo"),
+                                    cfg.get("bajada_minima_pct", 2.0))
 
             # Se guarda siempre, se avise o no.
             estado[clave] = {"p": precio, "m": moneda,

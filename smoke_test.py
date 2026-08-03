@@ -510,6 +510,22 @@ def probar_eneba(cfg):
     avisar, extra = eneba_watch.decidir("x", 85.0, "USD", {"p": 93.43}, None)
     revisar(avisar and extra, "el precio baja: avisa y dice desde cuánto")
 
+    # Un céntimo NO es una bajada. Caso literal que llegó al chat.
+    avisar, _ = eneba_watch.decidir("x", 47.03, "USD", {"p": 47.04}, None)
+    revisar(not avisar, "bajada de 1 céntimo: no molesta")
+    avisar, _ = eneba_watch.decidir("x", 76.46, "USD", {"p": 76.47}, None)
+    revisar(not avisar, "GTA VI 76.47 -> 76.46: tampoco molesta")
+    # Pero una bajada de verdad sí pasa.
+    avisar, _ = eneba_watch.decidir("x", 44.00, "USD", {"p": 47.04}, None)
+    revisar(avisar, "bajada del 6%: sí avisa")
+
+    # Una tarjeta SIEMPRE cuesta menos que su valor de cara. Leer justo el
+    # nominal significa que hemos leído mal, no que no tenga descuento.
+    igual(eneba_watch.extraer("Desde: 100,00 US$", 100), (None, None),
+          "tarjeta de 100 a 100,00: se rechaza (es el nominal)")
+    igual(eneba_watch.extraer("Desde: 93,37 US$", 100), (93.37, "USD"),
+          "tarjeta de 100 a 93,37: se acepta")
+
     urls = [p.get("url", "") for p in (cfg.get("eneba") or {}).get("productos", [])]
     revisar(urls and all(u.startswith("https://www.eneba.com/") for u in urls),
             "todas las URLs de Eneba son de eneba.com")

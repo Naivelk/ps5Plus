@@ -462,6 +462,10 @@ ofertas_juegos:
 eneba:
   activo: true
   espera_segundos: 20
+  # Cuánto tiene que bajar un precio para que te avise. Sin esto llegaban
+  # avisos de un céntimo ("47.03, estaba a 47.04"): los precios de Eneba se
+  # mueven solos según el vendedor más barato de cada momento.
+  bajada_minima_pct: 2.0
   productos:
     # `nominal` es el valor de cara de la tarjeta. Es una red contra lecturas
     # absurdas: en esa página conviven el precio real (93,42) y los de las
