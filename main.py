@@ -97,8 +97,13 @@ def main():
     hoy = datetime.date.today().isoformat()
 
     # 1) Recolectar de todas las fuentes (cada una reporta sus errores).
-    rd_items, rd_err = reddit_source.obtener(config)
-    of_items, of_err = reddit_source.obtener_ofertas(config)
+    # Reddit va a su propio ritmo: es la fuente que más rate limit provoca y
+    # la que más lento cambia. Las demás se miran en cada pasada.
+    if reddit_source.debe_consultar(config):
+        rd_items, rd_err = reddit_source.obtener(config)
+        of_items, of_err = reddit_source.obtener_ofertas(config)
+    else:
+        rd_items, rd_err, of_items, of_err = [], [], [], []
     rss_items, rss_err = rss_source.obtener(config)
     st_items, st_err = store_source.obtener(config)
     it_items, it_err = itad_source.obtener(config)

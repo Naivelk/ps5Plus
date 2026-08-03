@@ -19,13 +19,17 @@ Todo esto salió de probar contra Reddit de verdad, no de suponer:
 4. La consulta necesita comillas. `q=ps plus` devuelve CERO resultados;
    `q="ps plus"` devuelve decenas.
 """
+import io
 import os
+import json
 import time
 import datetime
 import calendar
 import urllib.parse
 import requests
 import feedparser
+
+ARCHIVO_RITMO = "state/reddit.json"
 
 # Reddit rechaza los User-Agent genéricos. Este identifica el bot, como pide
 # su documentación. A propósito NO lleva correo personal: el repo es público
@@ -40,6 +44,64 @@ def _a_fecha(struct_time):
     if not struct_time:
         return None
     return datetime.datetime.utcfromtimestamp(calendar.timegm(struct_time))
+
+
+def toca_consultar(ultima, cada_horas, ahora=None):
+    """¿Ha pasado ya bastante desde la última consulta a Reddit?
+
+    El bot corre cada media hora y cada pasada gastaba 5 peticiones al RSS
+    público de Reddit: unas 240 al día. Resultado, 429 en TODAS las
+    ejecuciones y runs de 3-4 minutos que eran casi solo esperar reintentos.
+
+    Reddit es la fuente más lenta de refrescar (las ofertas duran horas o
+    días), así que espaciarla no pierde nada. Las demás fuentes siguen
+    mirándose cada media hora.
+    """
+    if not cada_horas:
+        return True
+    if not ultima:
+        return True
+    ahora = ahora or datetime.datetime.utcnow()
+    try:
+        previa = datetime.datetime.strptime(ultima, "%Y-%m-%dT%H:%M:%S")
+    except (ValueError, TypeError):
+        return True
+    return (ahora - previa).total_seconds() >= cada_horas * 3600
+
+
+def _leer_ritmo():
+    try:
+        with io.open(ARCHIVO_RITMO, encoding="utf-8") as f:
+            return json.load(f)
+    except (IOError, OSError, ValueError):
+        return {}
+
+
+def debe_consultar(config, ahora=None):
+    """Decide UNA vez por ejecución si le toca a Reddit, y lo anota.
+
+    La decisión se toma aquí y no dentro de cada fuente porque las dos
+    (búsqueda de PS Plus y novedades de ofertas) comparten el mismo cupo: si
+    cada una mirase la marca por su cuenta, la segunda vería la que acaba de
+    escribir la primera y no correría nunca.
+    """
+    cfg = config.get("reddit", {}) or {}
+    cada = cfg.get("cada_horas", 2)
+    if not toca_consultar(_leer_ritmo().get("ultima"), cada, ahora):
+        print("[Reddit] le toca cada %sh; en esta pasada me lo salto." % cada)
+        return False
+    _anotar_consulta(ahora)
+    return True
+
+
+def _anotar_consulta(ahora=None):
+    ahora = ahora or datetime.datetime.utcnow()
+    try:
+        os.makedirs("state")
+    except OSError:
+        pass
+    with io.open(ARCHIVO_RITMO, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"ultima": ahora.strftime("%Y-%m-%dT%H:%M:%S")}))
 
 
 def _item(titulo, cuerpo, enlace, sub, autor, fecha):

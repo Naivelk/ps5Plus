@@ -354,6 +354,57 @@ def probar_nombres_existen():
                 % os.path.basename(ruta), "-> sobra %s" % ", ".join(sobran))
 
 
+def probar_estado_persistido():
+    """Todo fichero de state/ que el código escriba debe guardarlo un workflow.
+
+    Este fallo ya ocurrió dos veces y las dos fueron caras: precios.json y
+    latido.json se escribían pero no se comiteaban, así que cada ejecución
+    empezaba de cero — el bot nunca detectaba una bajada y mandaba el resumen
+    semanal cada media hora. Aquí se comprueba de una vez por todas.
+    """
+    import glob as _glob
+    import re as _re
+    print("\nficheros de estado guardados por los workflows")
+
+    escritos = set()
+    for ruta in _glob.glob(os.path.join(RAIZ, "*.py")):
+        with io.open(ruta, encoding="utf-8") as f:
+            for m in _re.finditer(r'"(state/[a-z_]+\.json)"', f.read()):
+                escritos.add(m.group(1))
+
+    guardados = ""
+    for wf in _glob.glob(os.path.join(RAIZ, ".github", "workflows", "*.yml")):
+        with io.open(wf, encoding="utf-8") as f:
+            guardados += f.read()
+
+    revisar(escritos, "se detectan ficheros de estado en el código")
+    for archivo in sorted(escritos):
+        revisar(archivo in guardados,
+                "algún workflow guarda %s" % archivo)
+
+
+def probar_ritmo_reddit(cfg):
+    """Reddit espaciado: es lo que provocaba 429 en todos los runs."""
+    print("\nritmo de Reddit")
+    import reddit_source
+    ahora = datetime.datetime(2026, 8, 3, 12, 0, 0)
+
+    revisar(reddit_source.toca_consultar(None, 2, ahora),
+            "primera vez: consulta")
+    revisar(not reddit_source.toca_consultar("2026-08-03T11:00:00", 2, ahora),
+            "hace 1h con ritmo de 2h: se salta")
+    revisar(reddit_source.toca_consultar("2026-08-03T09:30:00", 2, ahora),
+            "hace 2h30: consulta")
+    revisar(reddit_source.toca_consultar("basura", 2, ahora),
+            "marca ilegible: consulta igual (mejor de más que de menos)")
+    revisar(reddit_source.toca_consultar("2026-08-03T11:59:00", 0, ahora),
+            "con cada_horas=0 no se espacia nada")
+
+    cada = (cfg.get("reddit") or {}).get("cada_horas")
+    revisar(cada is None or 0 <= cada <= 12,
+            "cada_horas razonable", "-> %r" % cada)
+
+
 def probar_itad(cfg):
     """ITAD: sin key debe callarse, no romper."""
     print("\nIsThereAnyDeal")
@@ -738,6 +789,8 @@ def main():
     probar_ruido_real(cfg)
     probar_tarjetas(cfg)
     probar_ofertones(cfg)
+    probar_estado_persistido()
+    probar_ritmo_reddit(cfg)
     probar_itad(cfg)
     probar_eneba(cfg)
     probar_precios(cfg)

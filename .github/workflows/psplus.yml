@@ -63,13 +63,17 @@ jobs:
           cp state/seen.json /tmp/estado/ 2>/dev/null || true
           cp state/precios.json /tmp/estado/ 2>/dev/null || true
           cp state/latido.json /tmp/estado/ 2>/dev/null || true
+          # reddit.json guarda cuándo se consultó por última vez. Si no se
+          # guardara, cada pasada creería ser la primera y volveríamos a los
+          # 429 de siempre — el mismo fallo que ya tuvimos con precios.json.
+          cp state/reddit.json /tmp/estado/ 2>/dev/null || true
           ls /tmp/estado/*.json >/dev/null 2>&1 || exit 0
           git fetch origin main
           git reset --hard origin/main
           mkdir -p state
           cp /tmp/estado/*.json state/
           # Solo sus archivos: eneba.json lo lleva el otro workflow.
-          git add state/seen.json state/precios.json state/latido.json 2>/dev/null || true
+          git add state/seen.json state/precios.json state/latido.json state/reddit.json 2>/dev/null || true
           git commit -m "Actualizar estado del bot" || exit 0
           git push
 

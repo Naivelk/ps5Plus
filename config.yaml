@@ -541,6 +541,12 @@ reddit:
   # resultados; con comillas devuelve decenas.
   consulta: '"ps plus" OR "playstation plus" OR "psn card" OR "playstation network card"'
   ventana: week            # hour | day | week | month
+  # Cada cuántas horas se consulta Reddit. El bot corre cada media hora, y
+  # antes gastaba 5 peticiones en CADA pasada: unas 240 al día contra el RSS
+  # público. Resultado: 429 en todos los runs y 3-4 minutos por ejecución
+  # esperando reintentos. Las ofertas de Reddit duran horas o días, así que
+  # mirar cada 2 no pierde nada. Las demás fuentes siguen cada media hora.
+  cada_horas: 2
   limite: 50               # posts por sub (solo camino API)
   # Los tres de abajo solo aplican al camino RSS (sin credenciales de API).
   pausa_segundos: 15       # respiro entre subs: sin esto Reddit responde 429
