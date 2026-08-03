@@ -49,17 +49,28 @@ jobs:
         run: |
           git config user.name "psplus-bot"
           git config user.email "bot@users.noreply.github.com"
-          # TODA la carpeta state/, no solo seen.json. Guardar solo seen.json
-          # fue un fallo real: el historial de precios y la marca del resumen
-          # semanal se perdían en cada ejecución, así que el bot nunca
-          # detectaba una bajada de precio y mandaba el resumen cada media
-          # hora creyendo que era la primera vez.
-          # El `|| true` importa: si main.py falla antes de crear los
-          # archivos, `git add` daría error y marcaría el job como fallido
-          # por partida doble.
-          git add state/ 2>/dev/null || true
+          # Se guardan los TRES archivos de estado, no solo seen.json.
+          # Guardar solo seen.json fue un fallo real: el historial de precios
+          # y la marca del resumen semanal se perdían en cada ejecución, así
+          # que el bot nunca detectaba una bajada y mandaba el resumen cada
+          # media hora creyendo que era la primera vez.
+          #
+          # Nada de rebase: son archivos que el bot reescribe enteros en cada
+          # pasada, así que dos versiones distintas siempre chocan y el rebase
+          # se queda pidiendo resolución manual. Con un archivo generado no
+          # hay nada que fusionar: lo de ahora es lo bueno.
+          mkdir -p /tmp/estado
+          cp state/seen.json /tmp/estado/ 2>/dev/null || true
+          cp state/precios.json /tmp/estado/ 2>/dev/null || true
+          cp state/latido.json /tmp/estado/ 2>/dev/null || true
+          ls /tmp/estado/*.json >/dev/null 2>&1 || exit 0
+          git fetch origin main
+          git reset --hard origin/main
+          mkdir -p state
+          cp /tmp/estado/*.json state/
+          # Solo sus archivos: eneba.json lo lleva el otro workflow.
+          git add state/seen.json state/precios.json state/latido.json 2>/dev/null || true
           git commit -m "Actualizar estado del bot" || exit 0
-          git pull --rebase --autostash
           git push
 
       # Si algo falla (crash, dependencias, etc.), avisar por Telegram.

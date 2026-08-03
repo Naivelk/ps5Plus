@@ -45,9 +45,19 @@ jobs:
         run: |
           git config user.name "psplus-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add state/ 2>/dev/null || true
+          # Nada de rebase: state/eneba.json lo reescribe el bot en cada
+          # pasada, así que dos versiones distintas SIEMPRE chocan y el rebase
+          # se queda a medias pidiendo resolución manual (pasó de verdad y
+          # tumbó el job). Con un archivo generado no hay nada que fusionar:
+          # la lectura de ahora es la buena y punto.
+          cp state/eneba.json /tmp/eneba.json 2>/dev/null || exit 0
+          git fetch origin main
+          git reset --hard origin/main
+          mkdir -p state
+          cp /tmp/eneba.json state/eneba.json
+          # Solo su propio archivo: el otro workflow lleva los suyos aparte.
+          git add state/eneba.json
           git commit -m "Actualizar precios de Eneba" || exit 0
-          git pull --rebase --autostash
           git push
 
       # Ojo: aquí NO avisamos por Telegram si el job falla. Esta fuente se va
