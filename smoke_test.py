@@ -431,21 +431,15 @@ def probar_itad(cfg):
     items, errores = itad_source.obtener({"itad": {"activo": False}})
     igual((items, errores), ([], []), "desactivado: no hace nada")
 
-    # El título de un aviso tiene que decir lo importante de un vistazo.
+    # El título es solo el nombre: precio, descuento y demás van como campos
+    # aparte para que telegram_notify pueda darles formato.
     oferta = {"price": {"amount": 11.99, "currency": "USD"},
               "regular": {"amount": 59.99, "currency": "USD"},
               "shop": {"name": "Fanatical"}, "cut": 80, "flag": "N"}
-    t = itad_source._titulo("Elden Ring", oferta, (94, 1200))
-    for trozo in ("Elden Ring", "11.99", "-80%", "Fanatical", "nota 94"):
-        revisar(trozo in t, "el aviso incluye %r" % trozo)
-    revisar("nunca había estado tan barato" in t,
-            "avisa de que es mínimo histórico")
-    revisar("reseñas" in t, "el aviso dice cuántas reseñas tiene")
+    igual(itad_source._titulo("Elden Ring", oferta, (94, 1200)), "Elden Ring",
+          "el título es solo el nombre del juego")
 
-    # --- cupones y precios que huelen a error de la tienda ---
-    con_cupon = dict(oferta, voucher="LUCKY7")
-    revisar("LUCKY7" in itad_source._titulo("X", con_cupon, None),
-            "el aviso incluye el código del cupón")
+    # --- precios que huelen a error de la tienda ---
 
     # Muy por debajo del mínimo del último año: candidato a error de precio.
     raro = {"price": {"amount": 0.99, "currency": "USD"},
@@ -776,7 +770,48 @@ def probar_latido(cfg):
     texto = latido.componer(datos, [("Essential 12 meses", k)], 6,
                             hoy=datetime.date(2026, 7, 28))
     revisar("39.99" in texto, "el resumen incluye el precio actual")
-    revisar("rebajado" in texto, "marca que está rebajado")
+    revisar("64.99" in texto and "<s>" in texto,
+            "tacha el precio de antes")
+    revisar("−38%" in texto or "−39%" in texto,
+            "muestra el porcentaje de descuento")
+    revisar("domingo" in texto,
+            "explica que llega cada domingo (y qué significa que no llegue)")
+
+
+def probar_presentacion():
+    """El formato del aviso: lo primero tiene que ser el precio."""
+    print("\npresentación de los avisos")
+    import telegram_notify as tn
+
+    igual(tn.barra(80), "████████░░", "barra de -80%")
+    igual(tn.barra(16), "██░░░░░░░░", "barra de -16%")
+    igual(tn.barra(100), "██████████", "barra de -100%")
+    igual(tn.barra(1), "█░░░░░░░░░", "un descuento mínimo pinta un bloque")
+    igual(tn.barra(None), "", "sin descuento no hay barra")
+
+    igual(tn._importe(1234.5, "USD"), "1,234.50 US$", "formato de dólares")
+    igual(tn._importe(150000, "COP"), "$150.000", "formato de pesos")
+
+    it = {"titulo": "Elden Ring", "url": "https://x.com/a", "fuente": "Fanatical",
+          "precio": 11.99, "moneda": "USD", "precio_antes": 59.99,
+          "descuento": 80, "minimo_historico": True, "nota": 94,
+          "resenas": 45231, "cupon": "LUCKY7", "nivel": "ok",
+          "etiqueta": "🟢 Parece legítimo", "motivos": []}
+    b = tn._bloque(it, 1, ["US"])
+    revisar("<s>" in b, "tacha el precio anterior")
+    revisar("ahorras" in b and "48.00" in b, "dice cuánto ahorras en dinero")
+    revisar("████" in b, "pinta la barra de descuento")
+    revisar("🏆" in b and "⭐ 94" in b, "muestra mínimo histórico y nota")
+    revisar("LUCKY7" in b, "muestra el cupón")
+    # Un 🟢 en cada línea es ruido: de tanto verlo se deja de leer.
+    revisar("🟢" not in b, "no ensucia con el semáforo cuando todo está bien")
+
+    sospechoso = dict(it, nivel="riesgo",
+                      etiqueta="🔴 Sospechoso (posible estafa)",
+                      motivos=["no survey"])
+    b = tn._bloque(sospechoso, 1, ["US"])
+    revisar("🔴" in b and "no survey" in b,
+            "sí avisa cuando hay motivo de sospecha")
 
 
 def main():
@@ -799,6 +834,7 @@ def main():
     probar_historial()
     probar_vistos()
     probar_latido(cfg)
+    probar_presentacion()
 
     print("\n" + "=" * 62)
     if fallos:

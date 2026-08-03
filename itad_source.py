@@ -119,34 +119,14 @@ def es_precio_anomalo(oferta, factor=0.5):
 
 
 def _titulo(juego, oferta, nota):
-    precio, moneda = _precio(oferta.get("price"))
-    regular, _ = _precio(oferta.get("regular"))
-    tienda = (oferta.get("shop") or {}).get("name", "?")
-    corte = oferta.get("cut")
+    """El título es SOLO el nombre del juego.
 
-    trozos = ["%s — %.2f %s" % (juego, precio, moneda)]
-    if corte:
-        trozos.append("-%d%%" % corte)
-    if regular:
-        trozos.append("antes %.2f" % regular)
-    trozos.append("en %s" % tienda)
-    if oferta.get("flag") == FLAG_NUEVO_MINIMO:
-        trozos.append("🏆 nunca había estado tan barato")
-    if oferta.get("voucher"):
-        # Un cupón que hay que meter a mano en el carrito: sin el código, el
-        # precio de arriba no sale.
-        trozos.append("🎟 con el cupón %s" % oferta["voucher"])
-    if es_precio_anomalo(oferta):
-        trozos.append("⚡ precio rarísimo, puede ser un error de la tienda")
-    if nota:
-        # La cantidad de reseñas va delante: es lo que distingue un juegazo
-        # de un desconocido con nota alta y cuatro votos.
-        valor, cuenta = nota
-        if cuenta:
-            trozos.append("nota %d (%s reseñas)" % (int(valor), f"{cuenta:,}"))
-        else:
-            trozos.append("nota %d" % int(valor))
-    return " · ".join(trozos)
+    Antes metía aquí precio, descuento, tienda y nota, todo en una línea de
+    texto corrido. Ahora esos datos viajan como campos aparte y es
+    telegram_notify quien decide cómo mostrarlos, que es lo que permite darle
+    formato en vez de soltar un párrafo.
+    """
+    return juego
 
 
 def obtener(config):
@@ -242,7 +222,13 @@ def obtener(config):
             "categoria": "oferton",
             "precio": precio,
             "moneda": moneda,
+            "precio_antes": _precio(oferta.get("regular"))[0],
             "descuento": oferta.get("cut"),
+            "minimo_historico": oferta.get("flag") == FLAG_NUEVO_MINIMO,
+            "nota": nota[0] if nota else None,
+            "resenas": nota[1] if nota else None,
+            "cupon": oferta.get("voucher"),
+            "anomalo": es_precio_anomalo(oferta),
             "chollo": False,
             "region": None,
             # Viene estructurado de una API: no pasa por los filtros de texto,

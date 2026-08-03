@@ -181,6 +181,11 @@ def obtener(config, hist=None):
                 "directo": True,
                 "precio": f["precio"],
                 "moneda": f["moneda"],
+                "precio_antes": f["base"] if f["base"] > f["precio"] else None,
+                "descuento": (int(round(100 - f["precio"] * 100.0 / f["base"]))
+                              if f["base"] > f["precio"] else None),
+                "minimo_historico": (minimo_antes is not None
+                                     and f["precio"] < minimo_antes),
                 "categoria": "oferta",
             })
 

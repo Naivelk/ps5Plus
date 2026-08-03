@@ -62,29 +62,46 @@ def toca(cfg, ultimo, hoy=None, hora=None):
 
 
 def componer(datos, planes_seguidos, ventana_meses=6, hoy=None):
-    """Arma el texto del resumen a partir del historial."""
-    lineas = ["🩺 <b>Resumen semanal de PS Plus</b>",
-              "<i>Si recibes esto, el bot está funcionando.</i>", ""]
-    hay = False
+    """Arma el texto del resumen a partir del historial.
+
+    Mismo criterio que los avisos: el precio manda y el resto es contexto.
+    Y cuando el precio de hoy iguala al mínimo que hemos visto, se dice — es
+    la única forma de saber si merece la pena comprar ahora o esperar.
+    """
+    lineas = ["🩺 <b>RESUMEN SEMANAL</b>", "─" * 22]
+    cuerpo = []
 
     for etiqueta, k in planes_seguidos:
         ultimo = historial.ultimo(datos, k)
         if not ultimo:
             continue
-        hay = True
         precio = ultimo.get("p")
         base = ultimo.get("b")
-        texto = "• <b>%s</b>: %.2f" % (etiqueta, precio)
-        if base is not None and precio is not None and precio < base:
-            texto += " <b>(rebajado desde %.2f)</b>" % base
-        minimo = historial.minimo(datos, k, dias=ventana_meses * 30, hoy=hoy)
-        if minimo is not None and precio is not None and minimo < precio:
-            texto += "\n   mínimo visto: %.2f" % minimo
-        lineas.append(texto)
+        if precio is None:
+            continue
 
-    if not hay:
+        fila = ["<b>%s</b>" % etiqueta, "   <b>%.2f US$</b>" % precio]
+        if base is not None and precio < base:
+            ahorro = 100 - (precio * 100.0 / base)
+            fila[1] += "  <s>%.2f</s>  <b>−%.0f%%</b>" % (base, ahorro)
+
+        minimo = historial.minimo(datos, k, dias=ventana_meses * 30, hoy=hoy)
+        if minimo is not None:
+            if precio <= minimo:
+                fila.append("   🏆 es el más barato que le he visto")
+            else:
+                fila.append("   mínimo visto: %.2f US$" % minimo)
+        cuerpo.append("\n".join(fila))
+
+    if not cuerpo:
         lineas.append("Todavía no tengo historial de precios. "
                       "En unos días esto tendrá datos.")
+    else:
+        lineas.append("\n\n".join(cuerpo))
+
+    lineas.append("─" * 22)
+    lineas.append("<i>Este mensaje llega cada domingo. Si algún domingo no "
+                  "llega, es que el bot se ha roto.</i>")
     return "\n".join(lineas)
 
 
