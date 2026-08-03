@@ -347,11 +347,18 @@ def main():
                 print("[Eneba] %s -> ERROR %s" % (nombre, str(ex)[:120]))
                 continue
 
+            # Agotado no es un fallo del bot: es que ahora mismo no se vende.
+            # Distinguirlo importa porque, si contara como error, un producto
+            # agotado de forma permanente acabaría disparando la alarma de
+            # "Eneba no se puede leer" cuando en realidad todo va bien.
+            if RE_AGOTADO.search(texto):
+                print("[Eneba] %s -> agotado" % nombre)
+                continue
+
             precio, moneda = extraer(texto, prod.get("nominal"))
             if precio is None:
                 errores.append("%s: no se encontró el precio "
-                               "(¿agotado, bloqueado o cambió la página?)"
-                               % nombre)
+                               "(¿bloqueado o cambió la página?)" % nombre)
                 print("[Eneba] %s -> sin precio" % nombre)
                 continue
 

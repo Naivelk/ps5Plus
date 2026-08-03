@@ -481,12 +481,21 @@ eneba:
     - nombre: "Tarjeta PSN 25 USD (USA)"
       url: "https://www.eneba.com/latam/psn-playstation-network-card-25-usd-usa-psn-key-united-states"
       nominal: 25
-    # Estos dos suelen estar agotados en Eneba; cuando lo están, el bot lo
-    # detecta y no inventa un precio.
-    - nombre: "PS Plus Extra 12 meses (USA)"
-      url: "https://www.eneba.com/latam/psn-playstation-plus-extra-12-months-psn-key-united-states"
-    - nombre: "PS Plus Premium 12 meses (USA)"
-      url: "https://www.eneba.com/latam/psn-playstation-plus-premium-12-months-psn-key-united-states"
+    # Turquía: la vía de la que hablabas. 250 TRY cuestan ~5,36 US$, o sea un
+    # cambio implícito de ~47 TRY por dólar. Ahora mismo está agotada (pasa a
+    # menudo), pero en cuanto haya stock el bot lo pilla.
+    # Sin `nominal` a propósito: el valor va en liras y el precio en dólares,
+    # así que compararlos no tendría sentido.
+    - nombre: "Tarjeta PSN 250 TRY (Turquía)"
+      url: "https://www.eneba.com/latam/psn-playstation-network-card-250-try-tr-psn-key-turkey"
+    # De tu lista de seguimiento. En Eneba solo existe la versión Europa.
+    - nombre: "EA SPORTS FC 27 (PS5, Europa)"
+      url: "https://www.eneba.com/latam/psn-ea-sports-fc-27-ps5-psn-key-europe"
+
+    # NO se vigilan las suscripciones de PS Plus en Eneba: están agotadas en
+    # todas las regiones (US, Brasil...) desde que se montó esto. Lo que ahí
+    # se compra es SALDO, y con el saldo se paga la suscripción en la store.
+    # Los precios de PS Plus vienen del PlayStation Store oficial.
     - nombre: "GTA VI (PS5, global)"
       url: "https://www.eneba.com/latam/psn-grand-theft-auto-vi-ps5-psn-key-global"
 
