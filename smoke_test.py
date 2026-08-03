@@ -455,22 +455,27 @@ def probar_eneba(cfg):
     igual(eneba_watch.extraer("Desde: 400,00 US$", 100), (None, None),
           "nominal 100: rechaza un precio de 400")
 
-    # 4) La tarjeta de 50 NO tiene "Desde" en su página, y el bot informó de
-    #    una bajada a 21,09 que no existía. Importes reales de esa página:
-    #    54,04 y 46,98 son precios de vendedores; el resto, la tabla de
-    #    denominaciones sueltas (1 USD, 2 USD, 3 USD...).
+    # 4) Tras "Valor:" viene la tabla de denominaciones sueltas, y sus precios
+    #    (0,96 la de 1 USD... 30,65 la de 30 USD) se confundían con el del
+    #    producto. Por eso el bot llegó a decir que la de 25 costaba 21,09.
+    #    Textos reales de esas páginas.
     texto_50 = ("Tarjeta PlayStation Network 50 USD (USA) PSN Key\n"
                 "54,04 US$\n46,98 US$\n"
-                "Valor:\n1 USD\n0,96 US$\n2 USD\n1,93 US$\n3 USD\n2,88 US$\n"
-                "4 USD\n3,88 US$\n21,09 US$")
+                "Valor:\n1 USD\n0,96 US$\n2 USD\n1,93 US$\n30 USD\n30,65 US$")
     igual(eneba_watch.extraer(texto_50, 50), (46.98, "USD"),
-          "tarjeta de 50 sin 'Desde': coge 46,98, no 21,09 ni 0,96")
+          "tarjeta de 50: coge 46,98 y no 30,65 de la tabla")
 
-    # Y sin nominal se equivocaría: por eso las tarjetas lo llevan en config.
-    precio, _ = eneba_watch.extraer(texto_50)
-    revisar(precio != 46.98,
-            "sin nominal la misma página se lee mal (de ahí el ajuste)",
-            "-> %r" % precio)
+    texto_25 = ("Tarjeta PlayStation Network 25 USD (USA) PSN Key\n"
+                "27,15 US$\n23,60 US$\nRegión\nEstados Unidos\n"
+                "Valor:\n1 USD\n0,96 US$\n21 USD\n21,09 US$")
+    igual(eneba_watch.extraer(texto_25, 25), (23.60, "USD"),
+          "tarjeta de 25: coge 23,60 y no 21,09 de la tabla")
+
+    # Un juego no tiene esa sección, así que se mira la página entera.
+    texto_juego = ("Grand Theft Auto VI (PS5) PSN Key INDIA\n31\n"
+                   "76,14 US$\n76,14 US$\n69,22 US$\n15% de Cashback")
+    igual(eneba_watch.extraer(texto_juego), (69.22, "USD"),
+          "un juego sin sección 'Valor:' se lee entero")
 
     # Mismo criterio que el Store: avisar por bajada, no por número fijo.
     avisar, _ = eneba_watch.decidir("x", 93.43, "USD", None, None)

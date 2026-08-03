@@ -76,6 +76,28 @@ def _moneda(simbolo):
     return "USD"
 
 
+# En las tarjetas, tras "Valor:" viene la tabla de denominaciones sueltas:
+# 1 USD a 0,96 US$, 2 USD a 1,93 US$... hasta 30 USD a 30,65 US$. Esos NO son
+# el precio del producto, y por su culpa el bot llegó a informar de la tarjeta
+# de 25 "a 21,09" (que es el precio de otra denominación).
+#
+# Comprobado en la página de la de 25 USD:
+#   antes de "Valor:"  -> 27,15 y 23,60   (precios reales, el bueno es 23,60)
+#   después            -> 0,96 · 1,93 · 2,88 ...  (la tabla)
+#
+# Las páginas de juegos no llevan esta sección, así que se quedan enteras.
+CORTES = ("Valor:", "Value:", "Wartość:")
+
+
+def _recortar(texto):
+    """Se queda con la parte de arriba, antes de la tabla de denominaciones."""
+    for marca in CORTES:
+        i = texto.find(marca)
+        if i > 0:
+            return texto[:i]
+    return texto
+
+
 def extraer(texto, nominal=None):
     """Saca (precio, moneda) del texto visible de la página.
 
@@ -94,6 +116,7 @@ def extraer(texto, nominal=None):
     texto = texto or ""
     if RE_AGOTADO.search(texto):
         return None, None
+    texto = _recortar(texto)
 
     m = RE_DESDE.search(texto)
     if m:
@@ -222,8 +245,17 @@ def decidir(nombre, precio, moneda, previo, objetivo):
     return avisar, extra
 
 
-def _texto_pagina(pagina, url, espera):
-    pagina.goto(url, wait_until="networkidle", timeout=60000)
+def _texto_pagina(pagina, url, espera, intentos=2):
+    # Un timeout suelto es normal (le pasó a la variante de Europa en un run);
+    # con un reintento se salva sin perder toda la comparación de regiones.
+    for intento in range(intentos):
+        try:
+            pagina.goto(url, wait_until="networkidle", timeout=45000)
+            break
+        except Exception:
+            if intento + 1 >= intentos:
+                raise
+            print("[Eneba] timeout, reintento: %s" % url[-45:])
     # El precio se pinta después de hidratar React. Sin esperar, la primera
     # lectura sale VACÍA y parece que Eneba nos ha bloqueado — pasó de verdad
     # al probar la página de GTA VI. Esperamos a que aparezca cualquier
