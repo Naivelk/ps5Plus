@@ -53,6 +53,30 @@ esta fuente se calla y el resto del bot funciona igual.**
 Si un juego no tiene nota, se deja pasar: no tener dato significa "no sé", no
 "es malo".
 
+## Cupones y precios que parecen un error
+
+**Cupones:** ITAD indica cuándo una oferta depende de meter un código en el
+carrito, y el aviso lo incluye (`🎟 con el cupón LUCKY7`). Los cupones propios
+de Eneba **no** se ven: son campañas que se aplican en el carrito y no
+aparecen en la página del producto.
+
+**Cashback de Eneba:** sí se lee, y cambia con las campañas (se ha visto al
+15% y al 18% en la misma tarjeta con días de diferencia). Sobre 93 USD son
+casi 17 de vuelta, así que sale en el aviso.
+
+**Precios anómalos:** cuando un precio queda muy por debajo del mínimo del
+último año, el aviso lo marca con `⚡ precio rarísimo, puede ser un error de
+la tienda`. Suelen durar minutos.
+
+Dos cosas que conviene tener claras:
+
+- El bot **detecta** precios publicados que parecen equivocados; no fuerza ni
+  manipula nada de la tienda. Es lo mismo que hace cualquier cazador de
+  ofertas, solo que más rápido.
+- Un precio equivocado **no es dinero seguro**: las tiendas cancelan esos
+  pedidos con frecuencia y te devuelven el importe. Trátalo como una
+  oportunidad con riesgo, no como una compra hecha.
+
 ## Lo que sigues manda
 
 `seguimiento` en el config es la lista de lo que de verdad te importa (PS

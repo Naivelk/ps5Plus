@@ -97,6 +97,27 @@ def notas(gids, clave, pais):
     return salida
 
 
+def es_precio_anomalo(oferta, factor=0.5):
+    """¿Huele a error de precio de la tienda?
+
+    No hay forma de saberlo con certeza, pero un precio muy por debajo del
+    mínimo del último año suele serlo. Se marca para que puedas decidir rápido:
+    estas cosas duran minutos porque la tienda las corrige.
+
+    Aviso importante que va también en el mensaje: una tienda puede cancelar
+    un pedido hecho a un precio equivocado, y suele hacerlo. No es dinero
+    seguro, es una oportunidad con riesgo de que te devuelvan el importe.
+    """
+    precio = (oferta.get("price") or {}).get("amount")
+    if precio is None:
+        return False
+    anterior = (oferta.get("historyLow_1y") or {}).get("amount")
+    if anterior and precio < anterior * factor:
+        return True
+    # Un -97% tampoco suele ser una promoción pensada.
+    return (oferta.get("cut") or 0) >= 97
+
+
 def _titulo(juego, oferta, nota):
     precio, moneda = _precio(oferta.get("price"))
     regular, _ = _precio(oferta.get("regular"))
@@ -111,6 +132,12 @@ def _titulo(juego, oferta, nota):
     trozos.append("en %s" % tienda)
     if oferta.get("flag") == FLAG_NUEVO_MINIMO:
         trozos.append("🏆 nunca había estado tan barato")
+    if oferta.get("voucher"):
+        # Un cupón que hay que meter a mano en el carrito: sin el código, el
+        # precio de arriba no sale.
+        trozos.append("🎟 con el cupón %s" % oferta["voucher"])
+    if es_precio_anomalo(oferta):
+        trozos.append("⚡ precio rarísimo, puede ser un error de la tienda")
     if nota:
         # La cantidad de reseñas va delante: es lo que distingue un juegazo
         # de un desconocido con nota alta y cuatro votos.
@@ -149,8 +176,10 @@ def obtener(config):
         # Aquí está la diferencia entre "otra rebaja más" y una noticia.
         filtros["flag"] = FLAG_NUEVO_MINIMO
 
+    # vouchers=true para que entren también las ofertas que dependen de meter
+    # un código en el carrito; el código viene en el aviso.
     cuerpo = {"country": pais, "limit": limite, "sort": "-cut",
-              "filter": filtros}
+              "vouchers": True, "filter": filtros}
     try:
         datos = _pedir("POST", "/deals/v2", clave, cuerpo=cuerpo)
     except Exception as ex:

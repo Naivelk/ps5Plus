@@ -48,6 +48,19 @@ RE_IMPORTE = re.compile(
 RE_AGOTADO = re.compile(
     r"agotado|sold\s*out|out\s*of\s*stock|no\s*disponible", re.IGNORECASE)
 
+# El cashback de Eneba es un descuento real que cambia con las campañas: se
+# vio al 15% y al 18% en la misma tarjeta con días de diferencia. Sobre 93 USD
+# son casi 17 de vuelta, así que merece salir en el aviso.
+# Los cupones tipo LUCKY7 NO están aquí: son campañas que se aplican en el
+# carrito y no aparecen en la página del producto, así que el bot no los ve.
+RE_CASHBACK = re.compile(r"(\d{1,2})\s*%\s*de\s*Cashback", re.IGNORECASE)
+
+
+def cashback(texto):
+    """Porcentaje de cashback anunciado, o None."""
+    m = RE_CASHBACK.search(texto or "")
+    return int(m.group(1)) if m else None
+
 # Rangos de cordura por moneda, para no confundir un precio con el número de
 # valoraciones, un porcentaje de cashback o el año.
 LIMITES = {"USD": (1.0, 1000.0), "EUR": (1.0, 1000.0),
@@ -330,7 +343,10 @@ def main():
                 print("[Eneba] %s -> sin precio" % nombre)
                 continue
 
-            print("[Eneba] %s -> %.2f %s" % (nombre, precio, moneda))
+            vuelta = cashback(texto)
+            print("[Eneba] %s -> %.2f %s%s"
+                  % (nombre, precio, moneda,
+                     " (%d%% cashback)" % vuelta if vuelta else ""))
             clave = url
             previo = estado.get(clave)
             avisar, extra = decidir(nombre, precio, moneda, previo,
@@ -340,6 +356,8 @@ def main():
             estado[clave] = {"p": precio, "m": moneda,
                              "f": datetime.date.today().isoformat(),
                              "nombre": nombre}
+            if vuelta:
+                extra.append("%d%% de cashback" % vuelta)
             if avisar:
                 avisos.append({
                     "nombre": nombre, "precio": precio, "moneda": moneda,

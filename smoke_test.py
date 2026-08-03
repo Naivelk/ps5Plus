@@ -391,6 +391,26 @@ def probar_itad(cfg):
             "avisa de que es mínimo histórico")
     revisar("reseñas" in t, "el aviso dice cuántas reseñas tiene")
 
+    # --- cupones y precios que huelen a error de la tienda ---
+    con_cupon = dict(oferta, voucher="LUCKY7")
+    revisar("LUCKY7" in itad_source._titulo("X", con_cupon, None),
+            "el aviso incluye el código del cupón")
+
+    # Muy por debajo del mínimo del último año: candidato a error de precio.
+    raro = {"price": {"amount": 0.99, "currency": "USD"},
+            "regular": {"amount": 59.99, "currency": "USD"},
+            "shop": {"name": "Steam"}, "cut": 98,
+            "historyLow_1y": {"amount": 19.99, "currency": "USD"}}
+    revisar(itad_source.es_precio_anomalo(raro), "detecta un precio anómalo")
+
+    # Una rebaja fuerte pero coherente con su historial NO es un error.
+    normal = {"price": {"amount": 11.99, "currency": "USD"},
+              "regular": {"amount": 59.99, "currency": "USD"},
+              "shop": {"name": "Steam"}, "cut": 80,
+              "historyLow_1y": {"amount": 14.99, "currency": "USD"}}
+    revisar(not itad_source.es_precio_anomalo(normal),
+            "una rebaja normal no se marca como error")
+
     # --- fama: los casos REALES que llenaron el chat en la primera prueba ---
     nota_min = icfg.get("nota_minima", 75)
     res_min = icfg.get("resenas_minimas", 1000)
