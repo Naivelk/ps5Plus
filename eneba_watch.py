@@ -33,9 +33,20 @@ RE_DESDE = re.compile(
 # Cualquier importe con moneda. Hace falta porque las páginas de JUEGOS no
 # escriben "Desde" por ningún lado: comprobado en la de GTA VI, donde el
 # precio bueno (69,22 US$) sale suelto. Buscando solo "Desde" no se leía nada.
+#
+# OJO CON EL SÍMBOLO: Eneba distingue dos cosas que se parecen mucho.
+#   "93,42 US$"  -> un PRECIO (lleva el símbolo $)
+#   "100 USD"    -> el VALOR NOMINAL de la tarjeta, o una denominación
+# Aceptar "USD" hacía que la tarjeta de 100 se leyera como "cuesta 100.00",
+# cuando en realidad cuesta 93,42. Por eso aquí NO entra "USD" a secas.
 RE_IMPORTE = re.compile(
-    r"([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(US\$|USD|COP|EUR|€)",
-    re.IGNORECASE)
+    r"([\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(US\$|COP|€)")
+
+# Si el producto no está a la venta no hay precio que leer, y cualquier número
+# que saquemos de la página será de otra cosa. Pasó con PS Plus Extra 12
+# meses: estaba agotado y se leyó un "344.95" que no era su precio.
+RE_AGOTADO = re.compile(
+    r"agotado|sold\s*out|out\s*of\s*stock|no\s*disponible", re.IGNORECASE)
 
 # Rangos de cordura por moneda, para no confundir un precio con el número de
 # valoraciones, un porcentaje de cashback o el año.
@@ -65,19 +76,31 @@ def _moneda(simbolo):
     return "USD"
 
 
-def extraer(texto):
+def extraer(texto, nominal=None):
     """Saca (precio, moneda) del texto visible de la página.
 
-    Primero busca "Desde: X", que es lo que usan las tarjetas y es inequívoco.
-    Si no está —las páginas de juegos no lo escriben— se queda con el importe
-    MÁS BAJO que tenga pinta de precio: en Eneba venden varios vendedores el
-    mismo producto y el que interesa siempre es el más barato.
+    Orden de preferencia:
+      1. "Desde: X US$" — lo que usan tarjetas y recargas, y es inequívoco.
+      2. El importe más bajo con símbolo de moneda — para las páginas de
+         juegos, que no escriben "Desde" y donde varios vendedores ofrecen lo
+         mismo: el que interesa es el más barato.
+
+    `nominal` es el valor de cara de una tarjeta (100 para la de 100 USD). Si
+    se pasa, se exige que el precio esté entre el 40% y el 150% de esa cifra.
+    Sirve de red: en la página de la tarjeta de 100 conviven el precio real
+    (93,42) y los de las denominaciones sueltas (0,96 la de 1 USD), y sin este
+    filtro el "más barato" sería 0,96.
     """
     texto = texto or ""
+    if RE_AGOTADO.search(texto):
+        return None, None
+
     m = RE_DESDE.search(texto)
     if m:
         try:
-            return _a_numero(m.group(1)), _moneda(m.group(2))
+            valor = _a_numero(m.group(1))
+            if _plausible(valor, nominal):
+                return valor, _moneda(m.group(2))
         except ValueError:
             pass
 
@@ -89,11 +112,18 @@ def extraer(texto):
             continue
         moneda = _moneda(m.group(2))
         bajo, alto = LIMITES.get(moneda, (1.0, 1000.0))
-        if bajo <= valor <= alto:
+        if bajo <= valor <= alto and _plausible(valor, nominal):
             candidatos.append((valor, moneda))
     if not candidatos:
         return None, None
     return min(candidatos, key=lambda c: c[0])
+
+
+def _plausible(valor, nominal):
+    """Descarta precios imposibles para una tarjeta de valor conocido."""
+    if not nominal:
+        return True
+    return nominal * 0.4 <= valor <= nominal * 1.5
 
 
 def comparar_regiones(nombre, lecturas, referencia, ahorro_minimo):
@@ -185,10 +215,15 @@ def _texto_pagina(pagina, url, espera):
     # lectura sale VACÍA y parece que Eneba nos ha bloqueado — pasó de verdad
     # al probar la página de GTA VI. Esperamos a que aparezca cualquier
     # importe con moneda, no la palabra "Desde", que en juegos no existe.
+    # Se espera al SÍMBOLO de moneda (US$ / € / COP), nunca a "USD" a secas.
+    # Esperar a "USD" era inútil: el nombre del producto ya lleva "100 USD"
+    # desde el primer instante, así que la espera terminaba de inmediato y se
+    # leía la página antes de que el precio existiera. De ahí que la tarjeta
+    # de 100 USD se leyera como "cuesta 100.00".
     try:
         pagina.wait_for_function(
-            "() => /[\\d][\\d.,]*\\s*(US\\$|USD|COP|EUR|\\u20ac)/.test("
-            "document.body.innerText)",
+            "() => /[\\d][\\d.,]*\\s*(US\\$|COP|\\u20ac)|agotado|sold\\s*out/i"
+            ".test(document.body.innerText)",
             timeout=espera * 1000)
     except Exception:
         pass                          # seguimos: quizá cambió el formato
@@ -238,10 +273,11 @@ def main():
                 print("[Eneba] %s -> ERROR %s" % (nombre, str(ex)[:120]))
                 continue
 
-            precio, moneda = extraer(texto)
+            precio, moneda = extraer(texto, prod.get("nominal"))
             if precio is None:
                 errores.append("%s: no se encontró el precio "
-                               "(¿bloqueado o cambió la página?)" % nombre)
+                               "(¿agotado, bloqueado o cambió la página?)"
+                               % nombre)
                 print("[Eneba] %s -> sin precio" % nombre)
                 continue
 

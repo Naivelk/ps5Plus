@@ -426,6 +426,35 @@ def probar_eneba(cfg):
         igual(eneba_watch.extraer(texto), (ep, em),
               "precio Eneba de %r" % texto[:34])
 
+    # --- los tres fallos REALES del primer run de Eneba ---
+    print("\nEneba: fallos reales del primer run")
+
+    # 1) "100 USD" es el VALOR de la tarjeta, no su precio. El bot informó
+    #    "cuesta 100.00" cuando en realidad costaba 93,42.
+    texto_tarjeta = ("Tarjeta PlayStation Network 100 USD (USA) PSN Key\n"
+                     "Desde:\n93,42 US$\nNo es el precio final\n"
+                     "Valor:\n100 USD\n1 USD\n0,96 US$\n2 USD\n1,93 US$")
+    igual(eneba_watch.extraer(texto_tarjeta, 100), (93.42, "USD"),
+          "tarjeta de 100: lee 93,42 y no el nominal 100")
+
+    # 2) Sin el nominal, el "más barato" sería 0,96 (la denominación de 1 USD).
+    precio, _ = eneba_watch.extraer(texto_tarjeta)
+    revisar(precio == 93.42, "sin nominal, 'Desde' sigue mandando",
+            "-> %r" % precio)
+
+    # 3) Agotado: no hay precio, y cualquier número de la página es de otra
+    #    cosa. PS Plus Extra estaba agotado y se leyó un "344.95" inventado.
+    texto_agotado = ("PlayStation Plus Extra 12 meses Código de PSN\n933\n"
+                     "Lo sentimos, agotado :(\n344,95 US$\n")
+    igual(eneba_watch.extraer(texto_agotado), (None, None),
+          "agotado: devuelve sin precio en vez de inventarlo")
+
+    # El nominal descarta lecturas imposibles en ambos sentidos.
+    igual(eneba_watch.extraer("Desde: 0,96 US$", 100), (None, None),
+          "nominal 100: rechaza un precio de 0,96")
+    igual(eneba_watch.extraer("Desde: 400,00 US$", 100), (None, None),
+          "nominal 100: rechaza un precio de 400")
+
     # Mismo criterio que el Store: avisar por bajada, no por número fijo.
     avisar, _ = eneba_watch.decidir("x", 93.43, "USD", None, None)
     revisar(not avisar, "primera lectura sin objetivo: no avisa")

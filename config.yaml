@@ -463,13 +463,22 @@ eneba:
   activo: true
   espera_segundos: 20
   productos:
+    # `nominal` es el valor de cara de la tarjeta. Es una red contra lecturas
+    # absurdas: en esa página conviven el precio real (93,42) y los de las
+    # denominaciones sueltas (0,96 la de 1 USD). Con el nominal puesto, solo
+    # se acepta un precio entre el 40% y el 150% de esa cifra.
     - nombre: "Tarjeta PSN 100 USD (USA)"
       url: "https://www.eneba.com/latam/psn-playstation-network-card-100-usd-usa-psn-key-united-states"
+      nominal: 100
       objetivo: 90        # en la moneda que muestre Eneba (normalmente USD)
     - nombre: "Tarjeta PSN 50 USD (USA)"
       url: "https://www.eneba.com/latam/psn-playstation-network-card-50-usd-usa-psn-key-united-states"
+      nominal: 50
     - nombre: "Tarjeta PSN 25 USD (USA)"
       url: "https://www.eneba.com/latam/psn-playstation-network-card-25-usd-usa-psn-key-united-states"
+      nominal: 25
+    # Estos dos suelen estar agotados en Eneba; cuando lo están, el bot lo
+    # detecta y no inventa un precio.
     - nombre: "PS Plus Extra 12 meses (USA)"
       url: "https://www.eneba.com/latam/psn-playstation-plus-extra-12-months-psn-key-united-states"
     - nombre: "PS Plus Premium 12 meses (USA)"
