@@ -1,14 +1,14 @@
 {
  "cmp:GTA VI (PS5)": {
   "f": "2026-10-04",
-  "pct": 16.128631735783472,
+  "pct": 16.139044072004967,
   "region": "India"
  },
  "https://www.eneba.com/latam/psn-ea-sports-fc-27-ps5-psn-key-europe": {
   "f": "2026-10-04",
   "m": "USD",
   "nombre": "EA SPORTS FC 27 (PS5, Europa)",
-  "p": 145.23
+  "p": 145.24
  },
  "https://www.eneba.com/latam/psn-grand-theft-auto-vi-ps5-psn-key-global": {
   "f": "2026-09-03",
@@ -20,7 +20,7 @@
   "f": "2026-10-04",
   "m": "USD",
   "nombre": "Tarjeta PSN 100 USD (USA)",
-  "p": 97.68
+  "p": 97.69
  },
  "https://www.eneba.com/latam/psn-playstation-network-card-25-usd-usa-psn-key-united-states": {
   "f": "2026-10-04",
@@ -32,6 +32,6 @@
   "f": "2026-10-04",
   "m": "USD",
   "nombre": "Tarjeta PSN 50 USD (USA)",
-  "p": 48.4
+  "p": 49.1
  }
 }
